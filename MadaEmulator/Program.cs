@@ -30,8 +30,9 @@ namespace MadaEmulator
             public int InstructionCounter { get; set; }
             public Dictionary<Condition, bool> Flags { get; set; }
             public bool Halted { get; set; }
+            public byte[] Memory { get; set; }
 
-            public RunImage(byte[] registers, Stack<byte> callStack, byte programCounter, int instructionCounter, Dictionary<Condition, bool> flags, bool halted)
+            public RunImage(byte[] registers, Stack<byte> callStack, byte programCounter, int instructionCounter, Dictionary<Condition, bool> flags, bool halted, byte[] memory)
             {
                 Registers = new byte[registers.Length];
                 for (int i = 0; i < registers.Length; i++)
@@ -58,6 +59,12 @@ namespace MadaEmulator
                     Flags.Add(kvp.Key, kvp.Value);
                 }
                 Halted = halted;
+
+                Memory = new byte[memory.Length];
+                for (int i = 0; i < memory.Length; i++)
+                {
+                    Memory[i] = memory[i];
+                }
             }
         }
 
@@ -91,10 +98,11 @@ namespace MadaEmulator
         enum Token
         {
             Label,
-            Number,
             Opcode,
             Register,
-            Value,
+            Value4,
+            Value7,
+            Value8,
             Condition,
         }
 
@@ -104,6 +112,7 @@ namespace MadaEmulator
         static byte _programCounter = 0;
         static int _instructionCounter = 0;
         static bool _halted = false;
+        static byte[] _memory = new byte[256];
 
         static Dictionary<Condition, bool> _flags = new Dictionary<Condition, bool>()
         {
@@ -121,6 +130,7 @@ namespace MadaEmulator
         // Methods
         static void Main(string[] args)
         {
+            Console.WindowHeight = 40;
             bool debug = true;
             if (debug)
             {
@@ -159,25 +169,24 @@ namespace MadaEmulator
                 Console.CursorLeft = x;
                 Console.WriteLine(s);
             }
-            Console.Clear();
-            writeLineAtX(0, $"REGISTERS:");
-            for (byte i = 0; i < _registers.Length; i++)
+            void writeAtX(int x, string s)
             {
-                writeLineAtX(0, $"{$"r{i}".PadLeft(3, ' ')} : 0b{Convert.ToString(GetRegister(i), 2).PadLeft(8, '0')} ({GetRegister(i)})");
+                Console.CursorLeft = x;
+                Console.Write(s);
             }
-            Console.CursorTop = 0;
+            Console.Clear();
             writeLineAtX(30, $"PROGRAM COUNTER: {Convert.ToString(_programCounter, 2).PadLeft(8, '0')} ({_programCounter})");
-            writeLineAtX(30, $"");
+            writeLineAtX(30, string.Empty);
             writeLineAtX(30, $"INSTRUCTION COUNTER: {_instructionCounter}");
-            writeLineAtX(30, $"");
+            writeLineAtX(30, string.Empty);
             writeLineAtX(30, $"IS HALTED: {_halted}");
-            writeLineAtX(30, $""); 
+            writeLineAtX(30, string.Empty); 
             writeLineAtX(30, $"FLAGS:");
             foreach (KeyValuePair<Condition, bool> kvp in _flags)
             {
                 writeLineAtX(30, $"{kvp.Key} : {kvp.Value}");
             }
-            writeLineAtX(30, $"");
+            writeLineAtX(30, string.Empty);
             writeLineAtX(30, $"CALL STACK:");
             foreach (byte c in _callStack)
             {
@@ -202,6 +211,36 @@ namespace MadaEmulator
                 writeLineAtX(68, $"{_programText[i]}");
                 Console.ForegroundColor = ConsoleColor.Gray;
             }
+            Console.CursorTop = 0;
+            writeLineAtX(0, $"REGISTERS:");
+            for (byte i = 0; i < _registers.Length; i++)
+            {
+                writeLineAtX(0, $"{$"r{i}".PadLeft(3, ' ')} : 0b{Convert.ToString(GetRegister(i), 2).PadLeft(8, '0')} ({GetRegister(i)})");
+            }
+            writeLineAtX(0, string.Empty);
+            writeLineAtX(0, $"MEMORY:");
+            for (int y = 0; y < 16; y++)
+            {
+                byte[] array = new byte[16];
+                Array.ConstrainedCopy(_memory, y * 16, array, 0, 16);
+                writeAtX(0, $"{$"{y * 16}".PadLeft(3, ' ')} - {$"{y * 16 + 15}".PadLeft(3, ' ')}: ");
+                string[] toPrint = BitConverter.ToString(array).Split('-');
+                foreach (string value in toPrint)
+                {
+                    switch (value)
+                    {
+                        case "00":
+                            Console.ForegroundColor = ConsoleColor.DarkGray;
+                            break;
+                        default:
+                            Console.ForegroundColor = ConsoleColor.White;
+                            break;
+                    }
+                    Console.Write(value + " ");
+                }
+                Console.ForegroundColor = ConsoleColor.Gray;
+                Console.WriteLine();
+            }
         }
         static void RestoreImage(RunImage runImage)
         {
@@ -211,10 +250,11 @@ namespace MadaEmulator
             _instructionCounter = runImage.InstructionCounter;
             _flags = runImage.Flags;
             _halted = runImage.Halted;
+            _memory = runImage.Memory;
         }
         static void PushImage()
         {
-            _history.Push(new RunImage(_registers, _callStack, _programCounter, _instructionCounter, _flags, _halted));
+            _history.Push(new RunImage(_registers, _callStack, _programCounter, _instructionCounter, _flags, _halted, _memory));
         }
 
         static byte Add(byte x, byte y)
@@ -418,9 +458,29 @@ namespace MadaEmulator
                     PopCallStack();
                     break;
                 case Opcode.LOD:
-                    throw new NotImplementedException();
+                    if (_program[_programCounter].Operands.Length == 2)
+                    {
+                        SetRegister(_program[_programCounter].Operands[1], GetMemory(GetRegister(_program[_programCounter].Operands[0])));
+                    }
+                    else
+                    {
+                        SetRegister(_program[_programCounter].Operands[2], GetMemory((byte)(GetRegister(_program[_programCounter].Operands[0]) + GetRegister(_program[_programCounter].Operands[1]))));
+                    }
+                    _programCounter++;
+                    break;
                 case Opcode.STR:
-                    throw new NotImplementedException();
+                    if (_program[_programCounter].Operands.Length == 2)
+                    {
+                        SetMemory(GetRegister(_program[_programCounter].Operands[0]), GetRegister(_program[_programCounter].Operands[1]));
+                    }
+                    else
+                    {
+                        SetMemory((byte)(GetRegister(_program[_programCounter].Operands[0]) + _program[_programCounter].Operands[2]), GetRegister(_program[_programCounter].Operands[1]));
+                    }
+                    _programCounter++;
+                    break;
+                default:
+                    throw new Exception();
             }
             _instructionCounter++;
             PushImage();
@@ -431,6 +491,10 @@ namespace MadaEmulator
             _program.Clear();
             Dictionary<string, byte> labels = new Dictionary<string, byte>();
             string[] program = File.ReadAllLines($"programs\\{programName}.txt");
+            for (int lineIndex = 0; lineIndex < program.Length; lineIndex++)
+            {
+                program[lineIndex] = program[lineIndex].Trim(' ');
+            }
             (Token, string)[][] programTokens = new (Token, string)[program.Length][];
 
             for (byte lineIndex = 0; lineIndex < program.Length; lineIndex++)
@@ -475,8 +539,8 @@ namespace MadaEmulator
                         {
                             throw new FormatException($"Line {lineIndex}: Token '{token}' was not in a valid format for a binary value.");
                         }
-                        int baseTenToken = 0;
-                        int mult = 1;
+                        byte baseTenToken = 0;
+                        byte mult = 1;
                         for (int i = token.Length - 1; i >= 2; i--)
                         {
                             if (token[i] == '1')
@@ -489,7 +553,18 @@ namespace MadaEmulator
                             }
                             mult *= 2;
                         }
-                        list.Add((Token.Value, $"{baseTenToken}"));
+                        if (baseTenToken < 0b00010000)
+                        {
+                            list.Add((Token.Value4, $"{baseTenToken}"));
+                        }
+                        else if (baseTenToken < 0b10000000)
+                        {
+                            list.Add((Token.Value7, $"{baseTenToken}"));
+                        }
+                        else
+                        {
+                            list.Add((Token.Value8, $"{baseTenToken}"));
+                        }
                         continue;
                     }
 
@@ -501,7 +576,18 @@ namespace MadaEmulator
 
                     if (byte.TryParse(token, out byte byteResult))
                     {
-                        list.Add((Token.Value, token));
+                        if (byteResult < 0b00010000)
+                        {
+                            list.Add((Token.Value4, token));
+                        }
+                        else if (byteResult < 0b10000000)
+                        {
+                            list.Add((Token.Value7, token));
+                        }
+                        else
+                        {
+                            list.Add((Token.Value8, token));
+                        }
                         continue;
                     }
 
@@ -562,7 +648,7 @@ namespace MadaEmulator
                         {
                             throw new FormatException($"Line {lineIndex}: Label '{lineTokens[i].Item2}' doesn't point anywhere.");
                         }
-                        lineTokens[i].Item1 = Token.Value;
+                        lineTokens[i].Item1 = Token.Value7;
                     }
                 }
             }
@@ -603,6 +689,23 @@ namespace MadaEmulator
                             },
                         };
                         break;
+                    case Opcode.LOD:
+                        expectedMatches = new Token[][]
+                        {
+                            new Token[]
+                            {
+                                Token.Register,
+                                Token.Register,
+                            },
+                            new Token[]
+                            {
+                                Token.Register,
+                                Token.Register,
+                                Token.Value4,
+                            },
+                        };
+                        break;
+                    case Opcode.STR:
                     case Opcode.RSH:
                         expectedMatches = new Token[][]
                         {
@@ -626,7 +729,7 @@ namespace MadaEmulator
                             new Token[]
                             {
                                 Token.Register,
-                                Token.Value,
+                                Token.Value8,
                             },
                         };
                         break;
@@ -636,7 +739,7 @@ namespace MadaEmulator
                             new Token[]
                             {
                                 Token.Condition,
-                                Token.Value,
+                                Token.Value7,
                             },
                         };
                         break;
@@ -646,12 +749,10 @@ namespace MadaEmulator
                         {
                             new Token[]
                             {
-                                Token.Value,
+                                Token.Value7,
                             },
                         };
                         break;
-                    case Opcode.LOD:
-                    case Opcode.STR:
                     default:
                         throw new NotImplementedException();
 
@@ -671,8 +772,17 @@ namespace MadaEmulator
                     {
                         if (match[i] != lineTokens[i + 1].Item1)
                         {
-                            success = false;
-                            break;
+                            if 
+                            (!(
+                                match[i] == Token.Value7 && lineTokens[i + 1].Item1 == Token.Value4 ||
+                                match[i] == Token.Value8 && lineTokens[i + 1].Item1 == Token.Value7 ||
+                                match[i] == Token.Value8 && lineTokens[i + 1].Item1 == Token.Value4
+                            ))
+                            {
+
+                                success = false;
+                                break;
+                            }
                         }
                         values.Add(lineTokens[i + 1].Item2);
                     }
@@ -713,6 +823,14 @@ namespace MadaEmulator
         static void PopCallStack()
         {
             _programCounter = (byte)(_callStack.Pop() + 1);
+        }
+        static byte GetMemory(byte index)
+        {
+            return _memory[index];
+        }
+        static void SetMemory(byte index, byte value)
+        {
+            _memory[index] = value;
         }
         static byte GetRegister(byte index)
         {
