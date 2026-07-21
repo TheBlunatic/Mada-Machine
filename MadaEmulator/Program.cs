@@ -131,7 +131,7 @@ namespace MadaEmulator
         static void Main(string[] args)
         {
             Console.WindowHeight = 40;
-            bool debug = true;
+            bool debug = false;
             if (debug)
             {
 
@@ -689,7 +689,7 @@ namespace MadaEmulator
                             },
                         };
                         break;
-                    case Opcode.LOD:
+                    case Opcode.STR:
                         expectedMatches = new Token[][]
                         {
                             new Token[]
@@ -705,7 +705,7 @@ namespace MadaEmulator
                             },
                         };
                         break;
-                    case Opcode.STR:
+                    case Opcode.LOD:
                     case Opcode.RSH:
                         expectedMatches = new Token[][]
                         {

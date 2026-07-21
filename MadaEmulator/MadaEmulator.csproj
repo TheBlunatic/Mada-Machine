@@ -53,6 +53,9 @@
     <Content Include="programs\bitcentrifuge.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="programs\memory.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="programs\popcount.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
