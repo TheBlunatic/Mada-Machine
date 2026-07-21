@@ -83,10 +83,10 @@ namespace MadaEmulator
         }
         enum Condition : byte
         {
-            Zero,
-            NotZero,
-            Carry,
-            NotCarry,
+            Z,
+            NZ,
+            C,
+            NC,
         }
         enum Token
         {
@@ -107,10 +107,10 @@ namespace MadaEmulator
 
         static Dictionary<Condition, bool> _flags = new Dictionary<Condition, bool>()
         {
-            {Condition.Zero, false },
-            {Condition.NotZero, false },
-            {Condition.Carry, false },
-            {Condition.NotCarry, false },
+            {Condition.Z, false },
+            {Condition.NZ, false },
+            {Condition.C, false },
+            {Condition.NC, false },
         };
 
         static string[] _programText;
@@ -121,22 +121,36 @@ namespace MadaEmulator
         // Methods
         static void Main(string[] args)
         {
-            Console.WriteLine("Enter program name:");
-            try
+            bool debug = true;
+            if (debug)
             {
+
+                Console.WriteLine("Enter program name:");
                 LoadProgram(Console.ReadLine());
                 RunProgram(true);
+                Console.WriteLine("Program ended. Any input will close the program.");
+                Console.ReadKey();
             }
-            catch (Exception e)
+            else
             {
-                Console.Clear();
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine("ERROR");
-                Console.WriteLine(e.Message);
-                Console.ForegroundColor = ConsoleColor.Gray;
+
+                Console.WriteLine("Enter program name:");
+                try
+                {
+                    LoadProgram(Console.ReadLine());
+                    RunProgram(true);
+                }
+                catch (Exception e)
+                {
+                    Console.Clear();
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("ERROR");
+                    Console.WriteLine(e.Message);
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                }
+                Console.WriteLine("Program ended. Any input will close the program.");
+                Console.ReadKey();
             }
-            Console.WriteLine("Program ended. Any input will close the program.");
-            Console.ReadKey();
         }
         static void UpdateDisplay()
         {
@@ -178,14 +192,14 @@ namespace MadaEmulator
                 Console.ForegroundColor = ConsoleColor.Gray;
             }
             Console.CursorTop = 0;
-            writeLineAtX(72, $"PROGRAM:");
+            writeLineAtX(68, $"PROGRAM:");
             for (int i = 0; i < _programText.Length; i++)
             {
                 if (i == _programCounter)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                 }
-                writeLineAtX(72, $"{_programText[i]}");
+                writeLineAtX(68, $"{_programText[i]}");
                 Console.ForegroundColor = ConsoleColor.Gray;
             }
         }
@@ -207,11 +221,11 @@ namespace MadaEmulator
         {
             int resultInt = (int)x + (int)y;
             byte result = (byte)(x + y);
-            _flags[Condition.Zero] = result == 0;
-            _flags[Condition.NotZero] = !_flags[Condition.Zero];
+            _flags[Condition.Z] = result == 0;
+            _flags[Condition.NZ] = !_flags[Condition.Z];
 
-            _flags[Condition.Carry] = resultInt > byte.MaxValue;
-            _flags[Condition.NotCarry] = !_flags[Condition.Carry];
+            _flags[Condition.C] = resultInt > byte.MaxValue;
+            _flags[Condition.NC] = !_flags[Condition.C];
 
             return result;
         }
@@ -224,33 +238,33 @@ namespace MadaEmulator
         static byte Nor(byte x, byte y)
         {
             byte result = (byte)~(x | y);
-            _flags[Condition.Zero] = result == 0;
-            _flags[Condition.NotZero] = !_flags[Condition.Zero];
+            _flags[Condition.Z] = result == 0;
+            _flags[Condition.NZ] = !_flags[Condition.Z];
 
-            _flags[Condition.Carry] = false;
-            _flags[Condition.NotCarry] = !_flags[Condition.Carry];
+            _flags[Condition.C] = false;
+            _flags[Condition.NC] = !_flags[Condition.C];
 
             return result;
         }
         static byte And(byte x, byte y)
         {
             byte result = (byte)(x & y);
-            _flags[Condition.Zero] = result == 0;
-            _flags[Condition.NotZero] = !_flags[Condition.Zero];
+            _flags[Condition.Z] = result == 0;
+            _flags[Condition.NZ] = !_flags[Condition.Z];
 
-            _flags[Condition.Carry] = false;
-            _flags[Condition.NotCarry] = !_flags[Condition.Carry];
+            _flags[Condition.C] = false;
+            _flags[Condition.NC] = !_flags[Condition.C];
 
             return result;
         }
         static byte Xor(byte x, byte y)
         {
             byte result = (byte)(x ^ y);
-            _flags[Condition.Zero] = result == 0;
-            _flags[Condition.NotZero] = !_flags[Condition.Zero];
+            _flags[Condition.Z] = result == 0;
+            _flags[Condition.NZ] = !_flags[Condition.Z];
 
-            _flags[Condition.Carry] = false;
-            _flags[Condition.NotCarry] = !_flags[Condition.Carry];
+            _flags[Condition.C] = false;
+            _flags[Condition.NC] = !_flags[Condition.C];
 
             return result;
         }
@@ -439,7 +453,7 @@ namespace MadaEmulator
                         continue;
                     }
 
-                    if (token.ToUpper() != token.ToLower() && Enum.TryParse<Opcode>(token, out Opcode result))
+                    if (token.ToUpper() != token.ToLower() && Enum.TryParse<Opcode>(token, out Opcode opcodeResult))
                     {
                         list.Add((Token.Opcode, token));
                         continue;
@@ -479,20 +493,9 @@ namespace MadaEmulator
                         continue;
                     }
 
-                    if (token[0] == '[' && token[token.Length - 1] == ']')
+                    if (token.ToUpper() != token.ToLower() && Enum.TryParse<Condition>(token, out Condition conditionResult))
                     {
-                        if (token.Length < 3)
-                        {
-                            throw new FormatException($"Line {lineIndex}: Token '{token}' was not in a valid format for a condition.");
-                        }
-                        if (Enum.TryParse<Condition>(token.Substring(1, token.Length - 2), out Condition conditionResult))
-                        {
-                            list.Add((Token.Condition, $"{(byte)conditionResult}"));
-                        }
-                        else
-                        {
-                            throw new FormatException($"Line {lineIndex}: Token '{token}' was not a valid condition.");
-                        }
+                        list.Add((Token.Condition, $"{(byte)conditionResult}"));
                         continue;
                     }
 

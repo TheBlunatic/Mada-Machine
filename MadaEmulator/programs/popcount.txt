@@ -3,9 +3,9 @@ LDI r2 8           // i
 LDI r3 1           // constant 1
 LDI r4 0           // output
 AND r1 r3 r0
-BNC [Zero] 7
+BNC Z 7
 ADD r3 r4 r4
 RSH r1 r1
 SUB r2 r3 r2
-BNC [NotZero] 4
+BNC NZ 4
 HLT // output in r4
