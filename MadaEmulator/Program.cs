@@ -135,6 +135,8 @@ namespace MadaEmulator
                 Console.WriteLine(e.Message);
                 Console.ForegroundColor = ConsoleColor.Gray;
             }
+            Console.WriteLine("Program ended. Any input will close the program.");
+            Console.ReadKey();
         }
         static void UpdateDisplay()
         {
