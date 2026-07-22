@@ -90,10 +90,10 @@ namespace MadaEmulator
         }
         enum Condition : byte
         {
-            Z,
-            NZ,
-            C,
-            NC,
+            Z = 0b00000000,
+            NZ = 0b00000100,
+            C = 0b00001000,
+            NC = 0b00001100,
         }
         enum Token
         {
@@ -113,6 +113,7 @@ namespace MadaEmulator
         static int _instructionCounter = 0;
         static bool _halted = false;
         static byte[] _memory = new byte[256];
+        static bool _writeMachineCode = false;
 
         static Dictionary<Condition, bool> _flags = new Dictionary<Condition, bool>()
         {
@@ -124,6 +125,7 @@ namespace MadaEmulator
 
         static string[] _programText;
         static List<ProgramLine> _program = new List<ProgramLine>();
+        static string[] _programBinary;
 
         static Stack<RunImage> _history = new Stack<RunImage>();
 
@@ -131,7 +133,7 @@ namespace MadaEmulator
         static void Main(string[] args)
         {
             Console.WindowHeight = 40;
-            bool debug = false;
+            bool debug = true;
             if (debug)
             {
 
@@ -208,7 +210,14 @@ namespace MadaEmulator
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                 }
-                writeLineAtX(68, $"{_programText[i]}");
+                if (_writeMachineCode)
+                {
+                    writeLineAtX(68, $"{_programBinary[i]}");
+                }
+                else
+                {
+                    writeLineAtX(68, $"{_programText[i]}");
+                }
                 Console.ForegroundColor = ConsoleColor.Gray;
             }
             Console.CursorTop = 0;
@@ -355,6 +364,10 @@ namespace MadaEmulator
                             }
                             break;
                         case "D":
+                            break;
+                        case "S":
+                            _writeMachineCode = !_writeMachineCode;
+                            skipStep = true;
                             break;
                         case "R":
                             skipStep = true;
@@ -798,6 +811,85 @@ namespace MadaEmulator
 
                 _program.Add(new ProgramLine(opcode, values.ToArray()));
                 _programText = program;
+            }
+
+            _programBinary = new string[_program.Count];
+            for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
+            {
+                ProgramLine line = _program[lineIndex];
+
+                string opcode()
+                {
+                    return get4((byte)line.Opcode);
+                }
+                string get8(byte value)
+                {
+                    string b = Convert.ToString(value, 2).PadLeft(8, '0');
+                    return b.Substring(0, 4) + " " + b.Substring(4);
+                }
+                string get7(byte value)
+                {
+                    string b = Convert.ToString(value, 2).PadLeft(8, '0');
+                    return "0" + b.Substring(1, 3) + " " + b.Substring(4);
+                }
+                string get4(byte value)
+                {
+                    string b = Convert.ToString(value, 2).PadLeft(8, '0');
+                    return b.Substring(4);
+                }
+                string combine(params string[] parts)
+                {
+                    string s = parts.Aggregate(string.Empty, (i, x) => $"{i} {x}");
+                    return s.Substring(1);
+                }
+                string blank = "0000";
+                switch (line.Opcode)
+                {
+                    case Opcode.NOP:
+                    case Opcode.RET:
+                    case Opcode.HLT:
+                        _programBinary[lineIndex] = combine(opcode(), blank, blank, blank);
+                        break;
+                    case Opcode.ADD:
+                    case Opcode.SUB:
+                    case Opcode.NOR:
+                    case Opcode.AND:
+                    case Opcode.XOR:
+                        _programBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), get4(line.Operands[2]));
+                        break;
+                    case Opcode.LDI:
+                    case Opcode.ADI:
+                        _programBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), get8(line.Operands[1]));
+                        break;
+                    case Opcode.JMP:
+                    case Opcode.CAL:
+                        _programBinary[lineIndex] = combine(opcode(), blank, get7(line.Operands[0]));
+                        break;
+                    case Opcode.BNC:
+                        _programBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), get7(line.Operands[1]));
+                        break;
+                    case Opcode.RSH:
+                    case Opcode.LOD:
+                        if (line.Operands.Length == 2)
+                        {
+                            _programBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), blank, get4(line.Operands[1]));
+                        }
+                        else
+                        {
+                            _programBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), get4(line.Operands[2]));
+                        }
+                        break;
+                    case Opcode.STR:
+                        if (line.Operands.Length == 2)
+                        {
+                            _programBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), blank);
+                        }
+                        else
+                        {
+                            _programBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), get4(line.Operands[2]));
+                        }
+                        break;
+                }
             }
         }
 
