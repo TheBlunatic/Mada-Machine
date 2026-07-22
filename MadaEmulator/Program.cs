@@ -133,7 +133,7 @@ namespace MadaEmulator
         static void Main(string[] args)
         {
             Console.WindowHeight = 40;
-            bool debug = true;
+            bool debug = false;
             if (debug)
             {
 
