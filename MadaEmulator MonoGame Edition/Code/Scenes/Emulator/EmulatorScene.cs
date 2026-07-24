@@ -101,16 +101,33 @@ namespace MadaEmulator_MonoGame_Edition
         }
         private void _drawEmulator(MonoGameInstance mgi)
         {
-            _mgc.WriteString(mgi, _canvasRegion.Position, $"Registers:");
-            for (int i = 0; i < _emulator.Registers.Length; i++)
+            int i;
+            _mgc.Fill(new Rectangle(_canvasRegion.Position.X, _canvasRegion.Position.Y, _canvasRegion.Dimensions.X, 1), Ch.Border.n0.e2.s0.w2, new Color(120, 120, 120));
+            _mgc.Fill(new Rectangle(_canvasRegion.Position.X, _canvasRegion.Position.Y + 1, _canvasRegion.Dimensions.X, 1), Ch.Border.n0.e1.s0.w1, new Color(80, 80, 80));
+            _mgc.SetCell(_canvasRegion.Position + new Vec(-1, 1), Ch.Border.n1.e1.s1.w0, new Color(80, 80, 80));
+            _mgc.SetCell(_canvasRegion.Position + new Vec(_canvasRegion.Dimensions.X, 1), Ch.Border.n1.e0.s1.w1, new Color(80, 80, 80));
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(0, 2), $"Flags:");
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(1, 3), $"{Fm.Fg(Color.DarkGray)}Z: {(_emulator.Flags[Emulator.Condition.Z] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")} {Fm.Fg(Color.DarkGray)}NZ: {(_emulator.Flags[Emulator.Condition.NZ] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")}");
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(1, 4), $"{Fm.Fg(Color.DarkGray)}C: {(_emulator.Flags[Emulator.Condition.C] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")} {Fm.Fg(Color.DarkGray)}NC: {(_emulator.Flags[Emulator.Condition.NC] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")}");
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(23, 2), $"Program Counter: {Fm.Fg(Color.DarkGray)}{_emulator.ProgramCounter}");
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(23, 4), $"Instruction Counter: {Fm.Fg(Color.DarkGray)}{_emulator.InstructionCounter}");
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(23, 6), $"Call Stack:");
+            i = 0;
+            foreach (byte b in _emulator.CallStack)
             {
-                Vec drawPos = _canvasRegion.Position + new Vec(0, i + 1);
+                _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(23, 7 + i), $" {Fm.Fg(Color.DarkGray)}0b{Convert.ToString(b, 2).PadLeft(8, '0')} ({b})");
+                i++;
+            }
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(0, 6), $"Registers:");
+            for (i = 0; i < _emulator.Registers.Length; i++)
+            {
+                Vec drawPos = _canvasRegion.Position + new Vec(0, i + 7);
                 _mgc.WriteString(mgi, drawPos, $"{Fm.Fg(Color.DarkGray)}{$"r{i}".PadLeft(4, ' ')}: 0b{Convert.ToString(_emulator.Registers[i], 2).PadLeft(8, '0')} ({_emulator.Registers[i]})");
             }
-            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(0, _emulator.Registers.Length + 2), $"Memory:");
-            for (int i = 0; i < 16; i++)
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(0, _emulator.Registers.Length + 8), $"Memory:");
+            for (i = 0; i < 16; i++)
             {
-                Vec drawPos = _canvasRegion.Position + new Vec(0, _emulator.Registers.Length + 3 + i);
+                Vec drawPos = _canvasRegion.Position + new Vec(0, _emulator.Registers.Length + 9 + i);
                 _mgc.WriteString(mgi, drawPos, $" {Fm.Fg(Color.DarkGray)}{$"{i * 16}".PadLeft(3, ' ')} - {$"{i * 16 + 15}".PadLeft(3, ' ')}:{Iterate.InBounds(i * 16, i * 16 + 16).Aggregate(string.Empty, (s, v) => 
                 {  
                     string addition = _emulator.Memory[v].ToString("x").PadLeft(2, '0');
