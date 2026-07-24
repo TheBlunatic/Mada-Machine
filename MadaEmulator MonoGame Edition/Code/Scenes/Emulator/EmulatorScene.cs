@@ -229,9 +229,9 @@ namespace MadaEmulator_MonoGame_Edition
             for (i = 0; i < 16; i++)
             {
                 Vec drawPos = _canvasRegion.Position + new Vec(0, _emulator.Registers.Length + 9 + i);
-                _mgc.WriteString(mgi, drawPos, $"{Fm.Fg(Color.DarkGray)}{$"{i * 16}".PadLeft(3, ' ')} - {$"{i * 16 + 15}".PadLeft(3, ' ')}:{Iterate.InBounds(i * 16, i * 16 + 16).Aggregate(string.Empty, (s, v) => 
+                _mgc.WriteString(mgi, drawPos, $" {Fm.Fg(Color.DarkGray)}{$"{i * 16}".PadLeft(3, ' ')} - {$"{i * 16 + 15}".PadLeft(3, ' ')}:{Iterate.InBounds(i * 16, i * 16 + 16).Aggregate(string.Empty, (s, v) => 
                 {  
-                    string addition = _emulator.Memory[v].ToString("x").PadLeft(2, '0');
+                    string addition = _emulator.Memory[v].ToString("X").PadLeft(2, '0');
                     switch (addition)
                     {
                         case "00":
