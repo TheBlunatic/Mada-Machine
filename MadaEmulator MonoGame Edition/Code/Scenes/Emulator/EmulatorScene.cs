@@ -24,6 +24,11 @@ namespace MadaEmulator_MonoGame_Edition
 
         private MonoGameConsoleRegion _canvasRegion;
 
+        private MonoGameConsoleRegion _programRegion;
+        private int _programOffset;
+        private int _hoveredLine;
+        private bool _showMachineCode;
+
         private string _programPath;
         private string _programDirectory;
 
@@ -40,9 +45,15 @@ namespace MadaEmulator_MonoGame_Edition
             _canvasRegion = new MonoGameConsoleRegion(new Rectangle(1, 3, _mgc.Dimensions.X - 2, _mgc.Dimensions.Y - 4));
             _mgc.AddElement(_canvasRegion);
 
+            _programRegion = new MonoGameConsoleRegion(new Rectangle(_canvasRegion.Position + new Vec(63, 4), new Vec(_canvasRegion.Dimensions.X - 63, _canvasRegion.Dimensions.Y - 4)));
+            _mgc.AddElement(_programRegion);
+            _programOffset = 0;
+            _hoveredLine = -1;
+
             _programPath = null;
             _programDirectory = null;
             _emulator = null;
+            _showMachineCode = true;
         }
 
         // Methods
@@ -56,11 +67,46 @@ namespace MadaEmulator_MonoGame_Edition
             _programPath = args.Path;
             _programDirectory = _programPath.Substring(0, _programPath.Length - _programPath.Split('\\').Last().Length - 1);
             _emulator = new Emulator(_programPath);
+            _programOffset = 0;
+            _showMachineCode = false;
         }
 
         public void Update(MonoGameInstance mgi)
         {
             _mgc.Update(mgi);
+            Vec hoveredCell = _mgc.GetCursorHoveredCellPos(mgi);
+
+            if (_emulator != null)
+            {
+
+                _hoveredLine = -1;
+                if (_programRegion.IsHovered)
+                {
+                    int scrollThisTick = mgi.CursorState.GetCursorScrollThisTick();
+                    if (scrollThisTick != 0 && _emulator.ProgramText.Length > _programRegion.Dimensions.Y)
+                    {
+                        _programOffset -= Math.Sign(scrollThisTick);
+                        if (_programOffset < 0)
+                        {
+                            _programOffset = 0;
+                        }
+                        else if (_programOffset > _emulator.ProgramText.Length - _programRegion.Dimensions.Y)
+                        {
+                            _programOffset = _emulator.ProgramText.Length - _programRegion.Dimensions.Y;
+                        }
+                    }
+                    Vec relativeCursorPosition = _programRegion.GetRelativePositionOfScreenPosition(hoveredCell);
+                    int hoveredIndex = relativeCursorPosition.Y + _programOffset;
+                    if (hoveredIndex < _emulator.ProgramText.Length && hoveredIndex >= 0)
+                    {
+                        _hoveredLine = hoveredIndex;
+                        if (relativeCursorPosition.X == 0)
+                        {
+                            // breakpoint
+                        }
+                    }
+                }
+            }
 
             if (mgi.ControlWasJustPressed("escape"))
             {
@@ -81,6 +127,10 @@ namespace MadaEmulator_MonoGame_Edition
                 fileExplorerScene.FileSelected += RespondToFileExplorer;
                 mgi.SceneIn(fileExplorerScene);
                 return;
+            }
+            if (mgi.ControlWasJustPressed("toggle machine code"))
+            {
+                _showMachineCode = !_showMachineCode;
             }
         }
 
@@ -106,6 +156,9 @@ namespace MadaEmulator_MonoGame_Edition
             _mgc.Fill(new Rectangle(_canvasRegion.Position.X, _canvasRegion.Position.Y + 1, _canvasRegion.Dimensions.X, 1), Ch.Border.n0.e1.s0.w1, new Color(80, 80, 80));
             _mgc.SetCell(_canvasRegion.Position + new Vec(-1, 1), Ch.Border.n1.e1.s1.w0, new Color(80, 80, 80));
             _mgc.SetCell(_canvasRegion.Position + new Vec(_canvasRegion.Dimensions.X, 1), Ch.Border.n1.e0.s1.w1, new Color(80, 80, 80));
+            _mgc.SetCell(_canvasRegion.Position + new Vec(62, 1), Ch.Border.n0.e1.s1.w1, new Color(80, 80, 80));
+            _mgc.SetCell(_canvasRegion.Position + new Vec(62, _canvasRegion.Dimensions.Y), Ch.Border.n1.e1.s0.w1, new Color(80, 80, 80));
+            _mgc.Fill(new Rectangle(_canvasRegion.Position + new Vec(62, 2), new Vec(1, _canvasRegion.Dimensions.Y - 2)), Ch.Border.n1.e0.s1.w0, new Color(80, 80, 80));
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(0, 2), $"Flags:");
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(1, 3), $"{Fm.Fg(Color.DarkGray)}Z: {(_emulator.Flags[Emulator.Condition.Z] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")} {Fm.Fg(Color.DarkGray)}NZ: {(_emulator.Flags[Emulator.Condition.NZ] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")}");
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(1, 4), $"{Fm.Fg(Color.DarkGray)}C: {(_emulator.Flags[Emulator.Condition.C] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")} {Fm.Fg(Color.DarkGray)}NC: {(_emulator.Flags[Emulator.Condition.NC] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")}");
@@ -142,6 +195,11 @@ namespace MadaEmulator_MonoGame_Edition
                     }
                     return $"{s} {addition}";
                 })}");
+            }
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, 2), $"Program:");
+            for (i = _programOffset; i < _emulator.ProgramText.Length && i + 4 - _programOffset < _canvasRegion.Dimensions.Y; i++)
+            {
+                _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, i + 4 - _programOffset), $" {Fm.Fg(new Color(60, 60, 60))}{$"{i}".PadLeft(3, ' ')}{(_emulator.ProgramCounter == i ? $"{Fm.Fg(Color.Yellow)} " : $"{Fm.Fg(Color.White)} ")}{(i == _hoveredLine ? Fm.Bg(new Color(60, 60, 60)) : string.Empty)}{(_showMachineCode ? _emulator.ProgramBinary[i] : _emulator.ProgramText[i])}{new string(' ', _programRegion.Dimensions.X)}", _programRegion.Dimensions.X - 4, MonoGameConsole.WrapType.Cut);
             }
         }
         public void Draw(MonoGameInstance mgi)
