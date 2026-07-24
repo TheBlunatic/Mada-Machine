@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
+using Blunatic.Mathematics;
 
 namespace MadaEmulator_MonoGame_Edition
 {
@@ -21,6 +22,8 @@ namespace MadaEmulator_MonoGame_Edition
 
         private MonoGameConsoleButton _fileButton;
 
+        private MonoGameConsoleRegion _canvasRegion;
+
         private string _programPath;
         private string _programDirectory;
 
@@ -33,6 +36,9 @@ namespace MadaEmulator_MonoGame_Edition
 
             _fileButton = new MonoGameConsoleButton(mgi, new Vec(1, 1), "File", true);
             _mgc.AddElement(_fileButton);
+
+            _canvasRegion = new MonoGameConsoleRegion(new Rectangle(1, 3, _mgc.Dimensions.X - 2, _mgc.Dimensions.Y - 4));
+            _mgc.AddElement(_canvasRegion);
 
             _programPath = null;
             _programDirectory = null;
@@ -77,7 +83,8 @@ namespace MadaEmulator_MonoGame_Edition
                 return;
             }
         }
-        public void Draw(MonoGameInstance mgi)
+
+        private void _drawOuterBorder()
         {
             _mgc.Fill(new Rectangle(1, 0, _mgc.Dimensions.X - 2, 1), Ch.Border.n0.e1.s0.w1, new Color(80, 80, 80));
             _mgc.SetCell(new Vec(0, 0), Ch.Border.n0.e1.s1.w0, new Color(80, 80, 80));
@@ -91,6 +98,43 @@ namespace MadaEmulator_MonoGame_Edition
             _mgc.SetCell(new Vec(_mgc.Dimensions.X - 1, _mgc.Dimensions.Y - 1), Ch.Border.n1.e0.s0.w1, new Color(80, 80, 80));
             _mgc.Fill(new Rectangle(0, 3, 1, _mgc.Dimensions.Y - 4), Ch.Border.n1.e0.s1.w0, new Color(80, 80, 80));
             _mgc.Fill(new Rectangle(_mgc.Dimensions.X - 1, 3, 1, _mgc.Dimensions.Y - 4), Ch.Border.n1.e0.s1.w0, new Color(80, 80, 80));
+        }
+        private void _drawEmulator(MonoGameInstance mgi)
+        {
+            _mgc.WriteString(mgi, _canvasRegion.Position, $"Registers:");
+            for (int i = 0; i < _emulator.Registers.Length; i++)
+            {
+                Vec drawPos = _canvasRegion.Position + new Vec(0, i + 1);
+                _mgc.WriteString(mgi, drawPos, $"{Fm.Fg(Color.DarkGray)}{$"r{i}".PadLeft(4, ' ')}: 0b{Convert.ToString(_emulator.Registers[i], 2).PadLeft(8, '0')} ({_emulator.Registers[i]})");
+            }
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(0, _emulator.Registers.Length + 2), $"Memory:");
+            for (int i = 0; i < 16; i++)
+            {
+                Vec drawPos = _canvasRegion.Position + new Vec(0, _emulator.Registers.Length + 3 + i);
+                _mgc.WriteString(mgi, drawPos, $" {Fm.Fg(Color.DarkGray)}{$"{i * 16}".PadLeft(3, ' ')} - {$"{i * 16 + 15}".PadLeft(3, ' ')}:{Iterate.InBounds(i * 16, i * 16 + 16).Aggregate(string.Empty, (s, v) => 
+                {  
+                    string addition = _emulator.Memory[v].ToString("x").PadLeft(2, '0');
+                    switch (addition)
+                    {
+                        case "00":
+                            addition = $"{Fm.Fg(Color.DarkGray)}{addition}";
+                            break;
+                        default:
+                            addition = $"{Fm.Fg(Color.White)}{addition}";
+                            break;
+                    }
+                    return $"{s} {addition}";
+                })}");
+            }
+        }
+        public void Draw(MonoGameInstance mgi)
+        {
+            _drawOuterBorder();
+
+            if (_emulator != null)
+            {
+                _drawEmulator(mgi);
+            }
 
             _mgc.Draw(mgi);
         }
