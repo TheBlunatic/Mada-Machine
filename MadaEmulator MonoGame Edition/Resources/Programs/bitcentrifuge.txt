@@ -1,0 +1,26 @@
+LDI r1 0b00000010    // input and output
+LDI r2 7             // cycles remaining
+LDI r5 1             // const one
+.main CAL .run
+ADD r8 r8 r0
+BNC Z .done
+SUB r2 r5 r2
+BNC NZ .main
+.done HLT
+.run LDI r3 0        // position
+LDI r4 0b11000000    // mask
+LDI r7 0b10000000    // comparison
+LDI r8 0             // optimisation
+.loop CAL .sort
+ADD r3 r5 r3
+RSH r4 r4
+RSH r7 r7
+SUB r2 r3 r0
+BNC NZ .loop
+.ret RET
+.sort AND r4 r1 r6   // isolation
+SUB r6 r7 r0
+BNC NZ .ret
+XOR r1 r4 r1
+LDI r8 1             // optimisation
+RET
