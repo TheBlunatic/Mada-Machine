@@ -29,7 +29,7 @@ namespace MadaEmulator_MonoGame_Edition
             public byte ProgramCounter { get; set; }
             public int InstructionCounter { get; set; }
             public Dictionary<Condition, bool> Flags { get; set; }
-            public bool Halted { get; set; }
+            public bool IsHalted { get; set; }
             public byte[] Memory { get; set; }
 
             public RunImage(byte[] registers, Stack<byte> callStack, byte programCounter, int instructionCounter, Dictionary<Condition, bool> flags, bool halted, byte[] memory)
@@ -58,7 +58,7 @@ namespace MadaEmulator_MonoGame_Edition
                 {
                     Flags.Add(kvp.Key, kvp.Value);
                 }
-                Halted = halted;
+                IsHalted = halted;
 
                 Memory = new byte[memory.Length];
                 for (int i = 0; i < memory.Length; i++)
@@ -148,89 +148,6 @@ namespace MadaEmulator_MonoGame_Edition
             };
             History = new Stack<RunImage>();
         }
-        public void UpdateDisplay()
-        {
-            void writeLineAtX(int x, string s)
-            {
-                Console.CursorLeft = x;
-                Console.WriteLine(s);
-            }
-            void writeAtX(int x, string s)
-            {
-                Console.CursorLeft = x;
-                Console.Write(s);
-            }
-            Console.Clear();
-            writeLineAtX(30, $"PROGRAM COUNTER: {Convert.ToString(ProgramCounter, 2).PadLeft(8, '0')} ({ProgramCounter})");
-            writeLineAtX(30, string.Empty);
-            writeLineAtX(30, $"INSTRUCTION COUNTER: {InstructionCounter}");
-            writeLineAtX(30, string.Empty);
-            writeLineAtX(30, $"IS HALTED: {IsHalted}");
-            writeLineAtX(30, string.Empty); 
-            writeLineAtX(30, $"FLAGS:");
-            foreach (KeyValuePair<Condition, bool> kvp in Flags)
-            {
-                writeLineAtX(30, $"{kvp.Key} : {kvp.Value}");
-            }
-            writeLineAtX(30, string.Empty);
-            writeLineAtX(30, $"CALL STACK:");
-            foreach (byte c in CallStack)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                writeLineAtX(30, $"0b{Convert.ToString(c, 2).PadLeft(8, '0')} ({c})");
-                Console.ForegroundColor = ConsoleColor.Gray;
-            }
-            if (CallStack.Count == 0)
-            {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                writeLineAtX(30, $"EMPTY");
-                Console.ForegroundColor = ConsoleColor.Gray;
-            }
-            Console.CursorTop = 0;
-            writeLineAtX(68, $"PROGRAM:");
-            for (int i = 0; i < ProgramText.Length; i++)
-            {
-                if (i == ProgramCounter)
-                {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                }
-                else
-                {
-                    writeLineAtX(68, $"{ProgramText[i]}");
-                }
-                Console.ForegroundColor = ConsoleColor.Gray;
-            }
-            Console.CursorTop = 0;
-            writeLineAtX(0, $"REGISTERS:");
-            for (byte i = 0; i < Registers.Length; i++)
-            {
-                writeLineAtX(0, $"{$"r{i}".PadLeft(3, ' ')} : 0b{Convert.ToString(GetRegister(i), 2).PadLeft(8, '0')} ({GetRegister(i)})");
-            }
-            writeLineAtX(0, string.Empty);
-            writeLineAtX(0, $"MEMORY:");
-            for (int y = 0; y < 16; y++)
-            {
-                byte[] array = new byte[16];
-                Array.ConstrainedCopy(Memory, y * 16, array, 0, 16);
-                writeAtX(0, $"{$"{y * 16}".PadLeft(3, ' ')} - {$"{y * 16 + 15}".PadLeft(3, ' ')}: ");
-                string[] toPrint = BitConverter.ToString(array).Split('-');
-                foreach (string value in toPrint)
-                {
-                    switch (value)
-                    {
-                        case "00":
-                            Console.ForegroundColor = ConsoleColor.DarkGray;
-                            break;
-                        default:
-                            Console.ForegroundColor = ConsoleColor.White;
-                            break;
-                    }
-                    Console.Write(value + " ");
-                }
-                Console.ForegroundColor = ConsoleColor.Gray;
-                Console.WriteLine();
-            }
-        }
         public void RestoreImage(RunImage runImage)
         {
             Registers = runImage.Registers;
@@ -238,7 +155,7 @@ namespace MadaEmulator_MonoGame_Edition
             ProgramCounter = runImage.ProgramCounter;
             InstructionCounter = runImage.InstructionCounter;
             Flags = runImage.Flags;
-            IsHalted = runImage.Halted;
+            IsHalted = runImage.IsHalted;
             Memory = runImage.Memory;
         }
         public void PushImage()
@@ -323,7 +240,6 @@ namespace MadaEmulator_MonoGame_Edition
                 bool skipStep = IsHalted;
                 if (step)
                 {
-                    UpdateDisplay();
                     string key = Console.ReadKey().Key.ToString();
                     switch (key)
                     {
@@ -362,7 +278,6 @@ namespace MadaEmulator_MonoGame_Edition
                             step = false;
                             break;
                         case "X":
-                            UpdateDisplay();
                             return;
                         default:
                             skipStep = true;
@@ -376,10 +291,19 @@ namespace MadaEmulator_MonoGame_Edition
                     step = true;
                 }
             }
-            UpdateDisplay();
+        }
+        public void Rewind()
+        {
+            if (History.Count > 1)
+            {
+                History.Pop();
+                RestoreImage(History.Pop());
+                PushImage();
+            }
         }
         public void Step()
         {
+            if (IsHalted) return;
             switch (Program[ProgramCounter].Opcode)
             {
                 case Opcode.NOP:
@@ -867,6 +791,7 @@ namespace MadaEmulator_MonoGame_Edition
                         break;
                 }
             }
+            PushImage();
         }
 
         public void PushCallStack(byte newAddress)

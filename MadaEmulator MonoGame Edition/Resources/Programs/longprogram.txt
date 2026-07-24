@@ -108,3 +108,4 @@ ADI r8 0b01110101
 XOR r1 r3 r1
 XOR r1 r7 r1
 XOR r1 r8 r1
+HLT
