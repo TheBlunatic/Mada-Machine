@@ -20,7 +20,8 @@ namespace MadaEmulator_MonoGame_Edition
         // Fields
         private MonoGameConsole _mgc;
 
-        private MonoGameConsoleButton _loadButton;
+        private MonoGameConsoleButton _fileButton;
+        private MonoGameConsoleButton _helpButton;
 
         private MonoGameConsoleRegion _canvasRegion;
 
@@ -43,8 +44,10 @@ namespace MadaEmulator_MonoGame_Edition
         {
             _mgc = new MonoGameConsole(mgi, new Vec(120, 45));
 
-            _loadButton = new MonoGameConsoleButton(mgi, new Vec(1, 1), "Load", true);
-            _mgc.AddElement(_loadButton);
+            _fileButton = new MonoGameConsoleButton(mgi, new Vec(1, 1), "File", true);
+            _mgc.AddElement(_fileButton);
+            _helpButton = new MonoGameConsoleButton(mgi, new Vec(10, 1), "Help", true);
+            _mgc.AddElement(_helpButton);
 
             _canvasRegion = new MonoGameConsoleRegion(new Rectangle(1, 3, _mgc.Dimensions.X - 2, _mgc.Dimensions.Y - 4));
             _mgc.AddElement(_canvasRegion);
@@ -165,7 +168,7 @@ namespace MadaEmulator_MonoGame_Edition
                 }
             }
 
-            if (mgi.ControlWasJustPressed("load program") || _loadButton.IsLeftClicked)
+            if (mgi.ControlWasJustPressed("load program") || _fileButton.IsLeftClicked)
             {
                 FileExplorerScene fileExplorerScene;
                 try

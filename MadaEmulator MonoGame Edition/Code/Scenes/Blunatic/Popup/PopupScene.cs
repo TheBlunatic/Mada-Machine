@@ -10,6 +10,9 @@ namespace Blunatic.Scenes
 {
     public class PopupScene : IScene
     {
+        // Constants
+        private const int EDGE_VOID = 8;
+
         // Enums
         public enum Type
         {
@@ -35,7 +38,7 @@ namespace Blunatic.Scenes
 
         // Properties
         public bool UpdatePreviousScene => false;
-        public bool DrawPreviousScene => false;
+        public bool DrawPreviousScene => true;
 
         // Events
         public event EventHandler<PopupEventArgs> Acknowledged;
@@ -53,12 +56,13 @@ namespace Blunatic.Scenes
         {
             _message = message;
             _mgc = new MonoGameConsole(mgi, new Vec(70, 30));
+            _mgc.Transparency = MonoGameConsole.TransparencyType.NotWrittenTo;
 
             _buttons = new Dictionary<Response, MonoGameConsoleButton>();
 
             void addButton(Response response, int pos)
             {
-                _buttons.Add(response, new MonoGameConsoleButton(mgi, new Vec(pos, _mgc.Dimensions.Y - 1), response.ToString()));
+                _buttons.Add(response, new MonoGameConsoleButton(mgi, new Vec(pos, _mgc.Dimensions.Y - 1 - EDGE_VOID), response.ToString()));
                 _buttons[response].Centre();
                 _mgc.AddElement(_buttons[response]);
             }
@@ -155,8 +159,8 @@ namespace Blunatic.Scenes
         }
         public void Draw(MonoGameInstance mgi)
         {
-            _mgc.Box(mgi, new Rectangle(new Vec(0), _mgc.Dimensions), $"{Fm.Fg(_titleColor)}{_title}", Color.White, Color.Black, true);
-            _mgc.WriteString(mgi, new Vec(2, 2), _message, _mgc.Dimensions.X - 4, MonoGameConsole.WrapType.WordWrap);
+            _mgc.Box(mgi, new Rectangle(new Vec(EDGE_VOID), _mgc.Dimensions - new Vec(EDGE_VOID*2)), $"{Fm.Fg(_titleColor)}{_title}", Color.White, Color.Black, true);
+            _mgc.WriteString(mgi, new Vec(2) + new Vec(EDGE_VOID), _message, _mgc.Dimensions.X - 4 - EDGE_VOID*2, MonoGameConsole.WrapType.WordWrap);
             _mgc.Draw(mgi);
         }
     }

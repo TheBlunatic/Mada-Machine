@@ -23,6 +23,7 @@ namespace Blunatic.Mgc
         // Constants
         public static readonly Color DEFAULT_OUT_OF_BOUNDS_COLOR = Color.Black;
         public static readonly bool DEFAULT_CLEAR_SCREEN_AFTER_DRAW = true;
+        public static readonly TransparencyType DEFAULT_TRANSPARENCY_TYPE = TransparencyType.None;
 
         // Enums
         public enum WrapType
@@ -31,6 +32,12 @@ namespace Blunatic.Mgc
             BasicWrap,
             WordWrap,
         }
+        public enum TransparencyType
+        {
+            None,
+            OutOfBounds,
+            NotWrittenTo,
+        }
 
         // Classes
         private class Cell
@@ -38,10 +45,12 @@ namespace Blunatic.Mgc
             private byte characterPositionIndicator = 0x00;
             private Color foregroundColor = Color.White;
             private Color backgroundColor = Color.Black;
+            private bool hasBeenWrittenToSinceLastReset = false;
 
-            public byte CharacterPositionIndicator { get { return characterPositionIndicator; } set { characterPositionIndicator = value; } }
-            public Color ForegroundColor { get { return foregroundColor; } set { foregroundColor = value; } }
-            public Color BackgroundColor { get { return backgroundColor; } set { backgroundColor = value; } }
+            public byte CharacterPositionIndicator { get { return characterPositionIndicator; } set { characterPositionIndicator = value; hasBeenWrittenToSinceLastReset = true; } }
+            public Color ForegroundColor { get { return foregroundColor; } set { foregroundColor = value; hasBeenWrittenToSinceLastReset = true; } }
+            public Color BackgroundColor { get { return backgroundColor; } set { backgroundColor = value; hasBeenWrittenToSinceLastReset = true; } }
+            public bool HasBeenWrittenToSinceLastReset { get { return hasBeenWrittenToSinceLastReset; } }
 
             public Cell()
             {
@@ -53,6 +62,7 @@ namespace Blunatic.Mgc
                 characterPositionIndicator = 0x00;
                 foregroundColor = Color.White;
                 backgroundColor = Color.Black;
+                hasBeenWrittenToSinceLastReset = false;
             }
         }
         private static class StringDrawCache
@@ -364,6 +374,7 @@ namespace Blunatic.Mgc
         public int TotalCharacterCount { get { return _charGrid.GetLength(0) * _charGrid.GetLength(1); } }
         public Vec Dimensions => Vec.GetDimensions(_charGrid);
         public Color OutOfBoundsColor { get; set; }
+        public TransparencyType Transparency { get; set; }
 
         // Fields
 
@@ -384,6 +395,7 @@ namespace Blunatic.Mgc
         {
             OutOfBoundsColor = DEFAULT_OUT_OF_BOUNDS_COLOR;
             ClearScreenAfterDraw = DEFAULT_CLEAR_SCREEN_AFTER_DRAW;
+            Transparency = DEFAULT_TRANSPARENCY_TYPE;
 
             _elements = new List<IMonoGameConsoleElement>();
 
@@ -731,7 +743,7 @@ namespace Blunatic.Mgc
                 b.Draw(mgi, this);
             }
 
-            mgi.GraphicsDevice.Clear(OutOfBoundsColor);
+            if (Transparency == TransparencyType.None) mgi.GraphicsDevice.Clear(OutOfBoundsColor);
 
             mgi.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointWrap, null, null, null, null);
 
@@ -753,20 +765,23 @@ namespace Blunatic.Mgc
                 for (int x = 0; x < _charGrid.GetLength(0); x++)
                 {
                     Cell nextCell = null;
-                    if (x == _charGrid.GetLength(0) - 1 || _getCell(new Vec(x + 1, y), out nextCell).BackgroundColor != matchingCell.BackgroundColor)
+                    if (x == _charGrid.GetLength(0) - 1 || _getCell(new Vec(x + 1, y), out nextCell).BackgroundColor != matchingCell.BackgroundColor || (Transparency == TransparencyType.NotWrittenTo && nextCell.HasBeenWrittenToSinceLastReset != matchingCell.HasBeenWrittenToSinceLastReset))
                     {
-                        mgi.SpriteBatch.Draw
-                        (
-                            Ch.CompiledGlyphTexture,
-                            startVector,
-                            Ch.GetRectangle(Ch.BlockFull, runLength),
-                            matchingCell.BackgroundColor,
-                            0f,
-                            Vector2.Zero,
-                            _charScale,
-                            SpriteEffects.None,
-                            0f
-                        );
+                        if (Transparency != TransparencyType.NotWrittenTo || matchingCell.HasBeenWrittenToSinceLastReset)
+                        {
+                            mgi.SpriteBatch.Draw
+                            (
+                                Ch.CompiledGlyphTexture,
+                                startVector,
+                                Ch.GetRectangle(Ch.BlockFull, runLength),
+                                matchingCell.BackgroundColor,
+                                0f,
+                                Vector2.Zero,
+                                _charScale,
+                                SpriteEffects.None,
+                                0f
+                            );
+                        }
 
                         runLength = 1;
                         matchingCell = nextCell;
@@ -793,20 +808,23 @@ namespace Blunatic.Mgc
                 for (int x = 0; x < _charGrid.GetLength(0); x++)
                 {
                     Cell nextCell = null;
-                    if (x == _charGrid.GetLength(0) - 1 || _getCell(new Vec(x + 1, y), out nextCell).ForegroundColor != matchingCell.ForegroundColor || nextCell.CharacterPositionIndicator != matchingCell.CharacterPositionIndicator)
+                    if (x == _charGrid.GetLength(0) - 1 || _getCell(new Vec(x + 1, y), out nextCell).ForegroundColor != matchingCell.ForegroundColor || nextCell.CharacterPositionIndicator != matchingCell.CharacterPositionIndicator || (Transparency == TransparencyType.NotWrittenTo && nextCell.HasBeenWrittenToSinceLastReset != matchingCell.HasBeenWrittenToSinceLastReset))
                     {
-                        mgi.SpriteBatch.Draw
-                        (
-                            Ch.CompiledGlyphTexture,
-                            startVector,
-                            Ch.GetRectangle(matchingCell.CharacterPositionIndicator, runLength),
-                            matchingCell.ForegroundColor,
-                            0f,
-                            Vector2.Zero,
-                            _charScale,
-                            SpriteEffects.None,
-                            0f
-                        );
+                        if (Transparency != TransparencyType.NotWrittenTo || matchingCell.HasBeenWrittenToSinceLastReset)
+                        {
+                            mgi.SpriteBatch.Draw
+                            (
+                                Ch.CompiledGlyphTexture,
+                                startVector,
+                                Ch.GetRectangle(matchingCell.CharacterPositionIndicator, runLength),
+                                matchingCell.ForegroundColor,
+                                0f,
+                                Vector2.Zero,
+                                _charScale,
+                                SpriteEffects.None,
+                                0f
+                            );
+                        }
 
                         runLength = 1;
                         matchingCell = nextCell;
