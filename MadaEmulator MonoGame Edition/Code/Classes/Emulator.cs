@@ -167,11 +167,11 @@ namespace MadaEmulator_MonoGame_Edition
         {
             int resultInt = (int)x + (int)y;
             byte result = (byte)(x + y);
-            Flags[Condition.Z] = result == 0;
-            Flags[Condition.NZ] = !Flags[Condition.Z];
+            SetFlag(Condition.Z, result == 0);
+            SetFlag(Condition.NZ, !GetFlag(Condition.Z));
 
-            Flags[Condition.C] = resultInt > byte.MaxValue;
-            Flags[Condition.NC] = !Flags[Condition.C];
+            SetFlag(Condition.C, resultInt > byte.MaxValue);
+            SetFlag(Condition.NC, !GetFlag(Condition.C));
 
             return result;
         }
@@ -184,33 +184,33 @@ namespace MadaEmulator_MonoGame_Edition
         public byte Nor(byte x, byte y)
         {
             byte result = (byte)~(x | y);
-            Flags[Condition.Z] = result == 0;
-            Flags[Condition.NZ] = !Flags[Condition.Z];
+            SetFlag(Condition.Z, result == 0);
+            SetFlag(Condition.NZ, !GetFlag(Condition.Z));
 
-            Flags[Condition.C] = false;
-            Flags[Condition.NC] = !Flags[Condition.C];
+            SetFlag(Condition.C, false);
+            SetFlag(Condition.NC, !GetFlag(Condition.C));
 
             return result;
         }
         public byte And(byte x, byte y)
         {
             byte result = (byte)(x & y);
-            Flags[Condition.Z] = result == 0;
-            Flags[Condition.NZ] = !Flags[Condition.Z];
+            SetFlag(Condition.Z, result == 0);
+            SetFlag(Condition.NZ, !GetFlag(Condition.Z));
 
-            Flags[Condition.C] = false;
-            Flags[Condition.NC] = !Flags[Condition.C];
+            SetFlag(Condition.C, false);
+            SetFlag(Condition.NC, !GetFlag(Condition.C));
 
             return result;
         }
         public byte Xor(byte x, byte y)
         {
             byte result = (byte)(x ^ y);
-            Flags[Condition.Z] = result == 0;
-            Flags[Condition.NZ] = !Flags[Condition.Z];
+            SetFlag(Condition.Z, result == 0);
+            SetFlag(Condition.NZ, !GetFlag(Condition.Z));
 
-            Flags[Condition.C] = false;
-            Flags[Condition.NC] = !Flags[Condition.C];
+            SetFlag(Condition.C, false);
+            SetFlag(Condition.NC, !GetFlag(Condition.C));
 
             return result;
         }
@@ -225,73 +225,6 @@ namespace MadaEmulator_MonoGame_Edition
             return result;
         }
 
-        public void RunProgram(bool step)
-        {
-            InstructionCounter = 0;
-            IsHalted = false;
-            History.Clear();
-            PushImage();
-            for (ProgramCounter = 0; ProgramCounter < Program.Count;)
-            {
-                if (IsHalted)
-                {
-                    step = true;
-                }
-                bool skipStep = IsHalted;
-                if (step)
-                {
-                    string key = Console.ReadKey().Key.ToString();
-                    switch (key)
-                    {
-                        case "A":
-                            skipStep = true;
-                            if (History.Count > 1)
-                            {
-                                History.Pop();
-                                RestoreImage(History.Pop());
-                                PushImage();
-                                step = true;
-                            }
-                            else if (History.Count == 1)
-                            {
-                                RestoreImage(History.Pop());
-                                PushImage();
-                                step = true;
-                            }
-                            break;
-                        case "D":
-                            break;
-                        case "R":
-                            skipStep = true;
-                            if (History.Count > 0)
-                            {
-                                while (History.Count > 1)
-                                {
-                                    History.Pop();
-                                }
-                                RestoreImage(History.Pop());
-                                PushImage();
-                                step = true;
-                            }
-                            break;
-                        case "Q":
-                            step = false;
-                            break;
-                        case "X":
-                            return;
-                        default:
-                            skipStep = true;
-                            break;
-                    }
-                }
-                if (skipStep) continue;
-                Step();
-                if (IsHalted)
-                {
-                    step = true;
-                }
-            }
-        }
         public void Rewind()
         {
             if (History.Count > 1)
@@ -307,30 +240,30 @@ namespace MadaEmulator_MonoGame_Edition
             switch (Program[ProgramCounter].Opcode)
             {
                 case Opcode.NOP:
-                    ProgramCounter++;
+                    IncrementProgramCounter();
                     break;
                 case Opcode.HLT:
                     IsHalted = true;
                     break;
                 case Opcode.ADD:
                     SetRegister(Program[ProgramCounter].Operands[2], Add(GetRegister(Program[ProgramCounter].Operands[0]), GetRegister(Program[ProgramCounter].Operands[1])));
-                    ProgramCounter++;
+                    IncrementProgramCounter();
                     break;
                 case Opcode.SUB:
                     SetRegister(Program[ProgramCounter].Operands[2], Sub(GetRegister(Program[ProgramCounter].Operands[0]), GetRegister(Program[ProgramCounter].Operands[1])));
-                    ProgramCounter++;
+                    IncrementProgramCounter();
                     break;
                 case Opcode.NOR:
                     SetRegister(Program[ProgramCounter].Operands[2], Nor(GetRegister(Program[ProgramCounter].Operands[0]), GetRegister(Program[ProgramCounter].Operands[1])));
-                    ProgramCounter++;
+                    IncrementProgramCounter();
                     break;
                 case Opcode.AND:
                     SetRegister(Program[ProgramCounter].Operands[2], And(GetRegister(Program[ProgramCounter].Operands[0]), GetRegister(Program[ProgramCounter].Operands[1])));
-                    ProgramCounter++;
+                    IncrementProgramCounter();
                     break;
                 case Opcode.XOR:
                     SetRegister(Program[ProgramCounter].Operands[2], Xor(GetRegister(Program[ProgramCounter].Operands[0]), GetRegister(Program[ProgramCounter].Operands[1])));
-                    ProgramCounter++;
+                    IncrementProgramCounter();
                     break;
                 case Opcode.RSH:
                     if (Program[ProgramCounter].Operands.Length == 2)
@@ -341,27 +274,27 @@ namespace MadaEmulator_MonoGame_Edition
                     {
                         SetRegister(Program[ProgramCounter].Operands[1], Rsh(GetRegister(Program[ProgramCounter].Operands[0]), GetRegister(Program[ProgramCounter].Operands[1])));
                     }
-                    ProgramCounter++;
+                    IncrementProgramCounter();
                     break;
                 case Opcode.LDI:
                     SetRegister(Program[ProgramCounter].Operands[0], Program[ProgramCounter].Operands[1]);
-                    ProgramCounter++;
+                    IncrementProgramCounter();
                     break;
                 case Opcode.ADI:
                     SetRegister(Program[ProgramCounter].Operands[0], Add(GetRegister(Program[ProgramCounter].Operands[0]), Program[ProgramCounter].Operands[1]));
-                    ProgramCounter++;
+                    IncrementProgramCounter();
                     break;
                 case Opcode.JMP:
-                    ProgramCounter = Program[ProgramCounter].Operands[0];
+                    SetProgramCounter(Program[ProgramCounter].Operands[0]);
                     break;
                 case Opcode.BNC:
                     if (Flags[(Condition)Program[ProgramCounter].Operands[0]])
                     {
-                        ProgramCounter = Program[ProgramCounter].Operands[1];
+                        SetProgramCounter(Program[ProgramCounter].Operands[1]);
                     }
                     else
                     {
-                        ProgramCounter++;
+                        IncrementProgramCounter();
                     }
                     break;
                 case Opcode.CAL:
@@ -379,7 +312,7 @@ namespace MadaEmulator_MonoGame_Edition
                     {
                         SetRegister(Program[ProgramCounter].Operands[2], GetMemory((byte)(GetRegister(Program[ProgramCounter].Operands[0]) + GetRegister(Program[ProgramCounter].Operands[1]))));
                     }
-                    ProgramCounter++;
+                    IncrementProgramCounter();
                     break;
                 case Opcode.STR:
                     if (Program[ProgramCounter].Operands.Length == 2)
@@ -390,7 +323,7 @@ namespace MadaEmulator_MonoGame_Edition
                     {
                         SetMemory((byte)(GetRegister(Program[ProgramCounter].Operands[0]) + Program[ProgramCounter].Operands[2]), GetRegister(Program[ProgramCounter].Operands[1]));
                     }
-                    ProgramCounter++;
+                    IncrementProgramCounter();
                     break;
                 default:
                     throw new Exception();
@@ -794,11 +727,20 @@ namespace MadaEmulator_MonoGame_Edition
             PushImage();
         }
 
+        public void IncrementProgramCounter()
+        {
+            ProgramCounter++;
+        }
+        public void SetProgramCounter(byte value)
+        {
+            ProgramCounter = value;
+        }
+
         public void PushCallStack(byte newAddress)
         {
             byte push = (byte)(ProgramCounter);
             CallStack.Push(push);
-            ProgramCounter = newAddress;
+            SetProgramCounter(newAddress);
             if (CallStack.Count > 8)
             {
                 Stack<byte> temp = new Stack<byte>();
@@ -815,8 +757,9 @@ namespace MadaEmulator_MonoGame_Edition
         }
         public void PopCallStack()
         {
-            ProgramCounter = (byte)(CallStack.Pop() + 1);
+            SetProgramCounter((byte)(CallStack.Pop() + 1));
         }
+
         public byte GetMemory(byte index)
         {
             return Memory[index];
@@ -825,6 +768,16 @@ namespace MadaEmulator_MonoGame_Edition
         {
             Memory[index] = value;
         }
+
+        public bool GetFlag(Condition condition)
+        {
+            return Flags[condition];
+        }
+        public void SetFlag(Condition condition, bool value)
+        {
+            Flags[condition] = value;
+        }
+
         public byte GetRegister(byte index)
         {
             if (index < 0 || index >= Registers.Length) throw new IndexOutOfRangeException();
