@@ -13,6 +13,12 @@ namespace MadaEmulator_MonoGame_Edition
 {
     public class EmulatorScene : IScene
     {
+        // Constants
+        private static readonly string[] FILE_BUTTON_DROPDOWN_ITEMS =
+        {
+            "Load",
+        };
+
         // Properties
         public bool UpdatePreviousScene => false;
         public bool DrawPreviousScene => false;
@@ -86,6 +92,27 @@ namespace MadaEmulator_MonoGame_Edition
             {
                 args.Reject(e.Message);
                 return;
+            }
+        }
+        public void RespondToFileButtonDropdown(object sender, DropdownScene.DropdownResultEventArgs args)
+        {
+            switch (FILE_BUTTON_DROPDOWN_ITEMS[args.SelectedIndex])
+            {
+                case "Load":
+                    {
+                        FileExplorerScene fileExplorerScene;
+                        try
+                        {
+                            fileExplorerScene = new FileExplorerScene(args.MonoGameInstance, FileExplorerScene.Mode.Open, _programDirectory);
+                        }
+                        catch
+                        {
+                            fileExplorerScene = new FileExplorerScene(args.MonoGameInstance, FileExplorerScene.Mode.Open, "Resources\\Programs");
+                        }
+                        fileExplorerScene.FileSelected += RespondToFileExplorer;
+                        args.MonoGameInstance.SceneIn(fileExplorerScene);
+                    }
+                    break;
             }
         }
 
@@ -168,19 +195,11 @@ namespace MadaEmulator_MonoGame_Edition
                 }
             }
 
-            if (mgi.ControlWasJustPressed("load program") || _fileButton.IsLeftClicked)
+            if (_fileButton.IsLeftClicked)
             {
-                FileExplorerScene fileExplorerScene;
-                try
-                {
-                    fileExplorerScene = new FileExplorerScene(mgi, FileExplorerScene.Mode.Open, _programDirectory);
-                }
-                catch
-                {
-                    fileExplorerScene = new FileExplorerScene(mgi, FileExplorerScene.Mode.Open, "Resources\\Programs");
-                }
-                fileExplorerScene.FileSelected += RespondToFileExplorer;
-                mgi.SceneIn(fileExplorerScene);
+                DropdownScene dropdownScene = new DropdownScene(mgi, _mgc.Dimensions, _fileButton.Position + Vec.East, FILE_BUTTON_DROPDOWN_ITEMS);
+                dropdownScene.ResultSelected += RespondToFileButtonDropdown;
+                mgi.SceneIn(dropdownScene);
                 return;
             }
         }

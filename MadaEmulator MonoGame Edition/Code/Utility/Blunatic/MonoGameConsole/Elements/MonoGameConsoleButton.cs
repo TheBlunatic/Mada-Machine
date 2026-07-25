@@ -10,6 +10,10 @@ namespace Blunatic.Mgc
 {
     public class MonoGameConsoleButton : IMonoGameConsoleElement
     {
+        // Constants
+        public static readonly Color DEFALULT_INACTIVE_BACKGROUND_COLOR = new Color(30, 30, 30);
+        public static readonly Color DEFALULT_ACTIVE_BACKGROUND_COLOR = new Color(60, 60, 60);
+
         // Properties
         public Vec Position => _position;
         public Vec Dimensions => _dimensions;
@@ -20,6 +24,9 @@ namespace Blunatic.Mgc
         public bool IsRightClicked { get; private set; }
         public bool IsMiddleClicked { get; private set; }
         public bool Inverted { get { return _inverted; } set { _inverted = value; } }
+
+        public Color InactiveBackgroundColor { get; set; }
+        public Color ActiveBackgroundColor { get; set; }
 
         // Events
         public event EventHandler LeftClicked;
@@ -34,11 +41,13 @@ namespace Blunatic.Mgc
         private bool _inverted;
 
         private string _startPattern = "[ ";
-        private string _endPattern = " ]";
+        private string _endPattern = $" ]";
 
         // Constructors
         public MonoGameConsoleButton(MonoGameInstance mgi, Vec pos, string text, bool havePatternedSides = true)
         {
+            InactiveBackgroundColor = DEFALULT_INACTIVE_BACKGROUND_COLOR;
+            ActiveBackgroundColor = DEFALULT_ACTIVE_BACKGROUND_COLOR;
             _inverted = false;
             _position = pos;
             _text = text;
@@ -83,7 +92,7 @@ namespace Blunatic.Mgc
         public void Draw(MonoGameInstance mgi, MonoGameConsole mgc)
         {
             Color fg = Color.White;
-            Color bg = IsHovered ? new Color(60, 60, 60) : new Color(30, 30, 30);
+            Color bg = IsHovered ? ActiveBackgroundColor : InactiveBackgroundColor;
 
             if (_inverted)
             {

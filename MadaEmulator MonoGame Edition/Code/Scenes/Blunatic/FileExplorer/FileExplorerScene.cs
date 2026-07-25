@@ -54,13 +54,15 @@ namespace Blunatic.Scenes
         }
         public class FileExplorerResultEventArgs : EventArgs
         {
+            public MonoGameInstance MonoGameInstance { get; init; }
             public Mode Mode { get; init; }
             public string Path { get; init; }
 
             private RejectionStatus _rejectionStatusObject;
 
-            public FileExplorerResultEventArgs(RejectionStatus rejectionStatusObject)
+            public FileExplorerResultEventArgs(MonoGameInstance mgi, RejectionStatus rejectionStatusObject)
             {
+                MonoGameInstance = mgi;
                 _rejectionStatusObject = rejectionStatusObject;
             }
 
@@ -148,14 +150,17 @@ namespace Blunatic.Scenes
         }
         private bool _attemptReturn(MonoGameInstance mgi, string path)
         {
+            mgi.SceneOut();
+
             RejectionStatus rejectionStatusObject = new RejectionStatus();
-            FileSelected?.Invoke(this, new FileExplorerResultEventArgs(rejectionStatusObject) { Mode = _mode, Path = path });
+            FileSelected?.Invoke(this, new FileExplorerResultEventArgs(mgi, rejectionStatusObject) { Mode = _mode, Path = path });
+
             if (!rejectionStatusObject.HasBeenRejected)
             {
-                mgi.SceneOut();
                 return true;
             }
 
+            mgi.SceneIn(this);
             mgi.SceneIn(new PopupScene(mgi, PopupScene.Type.Error, rejectionStatusObject.RejectionMessage));
 
             return false;
