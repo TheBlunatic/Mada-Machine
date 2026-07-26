@@ -10,6 +10,9 @@ namespace MadaEmulator_MonoGame_Edition
 {
     public class Emulator
     {
+        // Constants
+        public const byte MEMORY_LOCATION_RANDOMIZER = 159;
+
         // Classes
         public class ProgramLine
         {
@@ -31,8 +34,9 @@ namespace MadaEmulator_MonoGame_Edition
             public Dictionary<Condition, bool> Flags { get; set; }
             public bool IsHalted { get; set; }
             public byte[] Memory { get; set; }
+            public int RandomSeed { get; set; }
 
-            public RunImage(byte[] registers, Stack<byte> callStack, byte programCounter, int instructionCounter, Dictionary<Condition, bool> flags, bool halted, byte[] memory)
+            public RunImage(byte[] registers, Stack<byte> callStack, byte programCounter, int instructionCounter, Dictionary<Condition, bool> flags, bool halted, byte[] memory, int randomSeed)
             {
                 Registers = new byte[registers.Length];
                 for (int i = 0; i < registers.Length; i++)
@@ -65,6 +69,8 @@ namespace MadaEmulator_MonoGame_Edition
                 {
                     Memory[i] = memory[i];
                 }
+
+                RandomSeed = randomSeed;
             }
         }
 
@@ -113,6 +119,7 @@ namespace MadaEmulator_MonoGame_Edition
         public int InstructionCounter { get; private set; }
         public bool IsHalted { get; private set; }
         public byte[] Memory { get; private set; }
+        public int RandomSeed { get; private set; }
 
         public Dictionary<Condition, bool> Flags { get; private set; }
 
@@ -157,10 +164,11 @@ namespace MadaEmulator_MonoGame_Edition
             Flags = runImage.Flags;
             IsHalted = runImage.IsHalted;
             Memory = runImage.Memory;
+            RandomSeed = runImage.RandomSeed;
         }
         public void PushImage()
         {
-            History.Push(new RunImage(Registers, CallStack, ProgramCounter, InstructionCounter, Flags, IsHalted, Memory));
+            History.Push(new RunImage(Registers, CallStack, ProgramCounter, InstructionCounter, Flags, IsHalted, Memory, RandomSeed));
         }
 
         public byte Add(byte x, byte y)
@@ -241,9 +249,6 @@ namespace MadaEmulator_MonoGame_Edition
             {
                 case Opcode.NOP:
                     IncrementProgramCounter();
-                    break;
-                case Opcode.HLT:
-                    IsHalted = true;
                     break;
                 case Opcode.ADD:
                     SetRegister(Program[ProgramCounter].Operands[2], Add(GetRegister(Program[ProgramCounter].Operands[0]), GetRegister(Program[ProgramCounter].Operands[1])));
@@ -328,7 +333,12 @@ namespace MadaEmulator_MonoGame_Edition
                 default:
                     throw new Exception();
             }
+
             InstructionCounter++;
+
+            RandomSeed = new Random(RandomSeed).Next();
+            Memory[MEMORY_LOCATION_RANDOMIZER] = (byte)RandomSeed;
+
             PushImage();
         }
 
@@ -724,16 +734,25 @@ namespace MadaEmulator_MonoGame_Edition
                         break;
                 }
             }
+
+            RandomSeed = new Random().Next();
+            Memory[MEMORY_LOCATION_RANDOMIZER] = (byte)RandomSeed;
             PushImage();
         }
 
         public void IncrementProgramCounter()
         {
-            ProgramCounter++;
+            SetProgramCounter((byte)(ProgramCounter + 1));
         }
         public void SetProgramCounter(byte value)
         {
             ProgramCounter = value;
+
+            if (Program[ProgramCounter].Opcode == Opcode.HLT)
+            {
+                IsHalted = true;
+                ProgramCounter = 0;
+            }
         }
 
         public void PushCallStack(byte newAddress)
@@ -766,6 +785,11 @@ namespace MadaEmulator_MonoGame_Edition
         }
         public void SetMemory(byte index, byte value)
         {
+            if (index == MEMORY_LOCATION_RANDOMIZER)
+            {
+                return;
+            }
+
             Memory[index] = value;
         }
 
