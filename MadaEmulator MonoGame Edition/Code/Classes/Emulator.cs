@@ -15,14 +15,14 @@ namespace MadaEmulator_MonoGame_Edition
         public const byte MEMORY_IN_CONTROLLER_BYTE = 255;
         public const byte MEMORY_IN_CONTROLLER_BUTTONS = 191; // Red Green Blue Enter - - - -
 
-        public static HashSet<byte> MEMORY_OUT_ALL = 
+        public static HashSet<byte> MEMORY_IN_ALL = 
             new HashSet<byte>() { MEMORY_IN_RANDOMIZER, MEMORY_IN_CONTROLLER_BYTE, MEMORY_IN_CONTROLLER_BUTTONS }
             .ToHashSet();
 
         public static readonly HashSet<byte> MEMORY_OUT_SCREEN = new HashSet<byte> { 246, 247, 248, 249, 250, 251, 252, 253 };
         public const byte MEMORY_OUT_FLAGS = 245; // - - - - - ScreenOn ByteAcknowledge ColourAcknowledge
 
-        public static HashSet<byte> MEMORY_IN_ALL = 
+        public static HashSet<byte> MEMORY_OUT_ALL = 
             new HashSet<byte>() { MEMORY_OUT_FLAGS }
             .Union(MEMORY_OUT_SCREEN)
             .ToHashSet();

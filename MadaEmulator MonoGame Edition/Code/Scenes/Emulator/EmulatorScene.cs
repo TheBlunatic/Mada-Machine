@@ -19,6 +19,13 @@ namespace MadaEmulator_MonoGame_Edition
             "Load",
         };
 
+        // Enums
+        private enum LowerLeftDisplayType
+        {
+            Memory,
+            Peripherals,
+        }
+
         // Properties
         public bool UpdatePreviousScene => false;
         public bool DrawPreviousScene => false;
@@ -45,6 +52,8 @@ namespace MadaEmulator_MonoGame_Edition
 
         private Emulator _emulator;
 
+        private LowerLeftDisplayType _lowerLeftDisplay;
+
         // Constructors
         public EmulatorScene(MonoGameInstance mgi)
         {
@@ -68,6 +77,8 @@ namespace MadaEmulator_MonoGame_Edition
             _emulator = null;
             _showMachineCode = true;
             _breakpoints = null;
+
+            _lowerLeftDisplay = LowerLeftDisplayType.Memory;
         }
 
         // Methods
@@ -132,6 +143,17 @@ namespace MadaEmulator_MonoGame_Edition
                 if (mgi.ControlWasJustPressed("toggle machine code"))
                 {
                     _showMachineCode = !_showMachineCode;
+                }
+                if (mgi.ControlWasJustPressed("cycle lower left display"))
+                {
+                    if (_lowerLeftDisplay == LowerLeftDisplayType.Memory)
+                    {
+                        _lowerLeftDisplay = Enum.GetValues<LowerLeftDisplayType>().Last();
+                    }
+                    else
+                    {
+                        _lowerLeftDisplay--;
+                    }
                 }
 
                 if (mgi.ControlWasJustPressed("progress program") || mgi.ControlIsPressed("progress program fast") && !_breakpoints[_emulator.ProgramCounter])
@@ -247,16 +269,47 @@ namespace MadaEmulator_MonoGame_Edition
                 Vec drawPos = _canvasRegion.Position + new Vec(0, i + 7);
                 _mgc.WriteString(mgi, drawPos, $"{Fm.Fg(Color.DarkGray)}{$"r{i}".PadLeft(4, ' ')}: 0b{Convert.ToString(_emulator.Registers[i], 2).PadLeft(8, '0')} ({_emulator.Registers[i]})");
             }
-            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(0, _emulator.Registers.Length + 8), $"Memory:");
-            for (i = 0; i < 16; i++)
+            switch (_lowerLeftDisplay)
             {
-                Vec drawPos = _canvasRegion.Position + new Vec(0, _emulator.Registers.Length + 9 + i);
-                _mgc.WriteString(mgi, drawPos, $" {Fm.Fg(Color.DarkGray)}{$"{i * 16}".PadLeft(3, ' ')} - {$"{i * 16 + 15}".PadLeft(3, ' ')}:{Iterate.InBounds(i * 16, i * 16 + 16).Aggregate(string.Empty, (s, v) => 
-                {  
-                    string addition = _emulator.Memory[v].ToString("X").PadLeft(2, '0');
-                    addition = $"{(addition == "00" ? Fm.Fg(Color.DarkGray) : Fm.Fg(Color.White))}{(Emulator.MEMORY_IN_ALL.Contains((byte)v) ? Fm.Bg(new Color(0, 100, 0)) : Emulator.MEMORY_OUT_ALL.Contains((byte)v) ? Fm.Bg(new Color(100, 0, 0)) : Fm.Bg(Color.Black))}{addition}{Fm.Bg(Color.Black)}";
-                    return $"{s} {addition}";
-                })}");
+                case LowerLeftDisplayType.Memory:
+                    {
+                        _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(0, _emulator.Registers.Length + 8), $"Memory:");
+                        for (i = 0; i < 16; i++)
+                        {
+                            Vec drawPos = _canvasRegion.Position + new Vec(0, _emulator.Registers.Length + 9 + i);
+                            _mgc.WriteString(mgi, drawPos, $" {Fm.Fg(Color.DarkGray)}{$"{i * 16}".PadLeft(3, ' ')} - {$"{i * 16 + 15}".PadLeft(3, ' ')}:{Iterate.InBounds(i * 16, i * 16 + 16).Aggregate(string.Empty, (s, v) =>
+                            {
+                                string addition = _emulator.Memory[v].ToString("X").PadLeft(2, '0');
+                                addition = $"{(addition == "00" ? Fm.Fg(Color.DarkGray) : Fm.Fg(Color.White))}{(Emulator.MEMORY_IN_ALL.Contains((byte)v) ? Fm.Bg(new Color(0, 100, 0)) : Emulator.MEMORY_OUT_ALL.Contains((byte)v) ? Fm.Bg(new Color(100, 0, 0)) : Fm.Bg(Color.Black))}{addition}{Fm.Bg(Color.Black)}";
+                                return $"{s} {addition}";
+                            })}");
+                        }
+                    }
+                    break;
+                case LowerLeftDisplayType.Peripherals:
+                    {
+                        _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(0, _emulator.Registers.Length + 8), $"Peripherals:");
+                        byte lowestByte = Emulator.MEMORY_OUT_SCREEN.Aggregate(byte.MaxValue, (i, x) => Math.Min(i, x));
+                        foreach (byte b in Emulator.MEMORY_OUT_SCREEN)
+                        {
+                            int j = 0;
+                            for (byte a = 0b10000000; a != 0 ; a = (byte)(a >> 1))
+                            {
+                                Color color;
+                                if ((a & _emulator.Memory[b]) != 0 && (0b00000100 & _emulator.Memory[Emulator.MEMORY_OUT_FLAGS]) == 0)
+                                {
+                                    color = new Color(196, 174, 144);
+                                }
+                                else
+                                {
+                                    color = new Color(107, 62, 33);
+                                }
+                                _mgc.Fill(new Rectangle(_canvasRegion.Position.X + 3 * (b - lowestByte), _canvasRegion.Position.Y + _emulator.Registers.Length + 8 + j * 2 + 1, 3, 2), Ch.BlockFull, color);
+                                j++;
+                            }
+                        }
+                    }
+                    break;
             }
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, 2), $"Program:");
             for (i = _programOffset; i < _emulator.ProgramText.Length && i + 4 - _programOffset < _canvasRegion.Dimensions.Y; i++)
