@@ -289,6 +289,7 @@ namespace MadaEmulator_MonoGame_Edition
                 case LowerLeftDisplayType.Peripherals:
                     {
                         _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(0, _emulator.Registers.Length + 8), $"Peripherals:");
+                        _mgc.Box(new Rectangle(_canvasRegion.Position.X, _canvasRegion.Position.Y + _emulator.Registers.Length + 9, 26, 16), new Color(67, 67, 67), null, true);
                         byte lowestByte = Emulator.MEMORY_OUT_SCREEN.Aggregate(byte.MaxValue, (i, x) => Math.Min(i, x));
                         foreach (byte b in Emulator.MEMORY_OUT_SCREEN)
                         {
@@ -304,10 +305,36 @@ namespace MadaEmulator_MonoGame_Edition
                                 {
                                     color = new Color(107, 62, 33);
                                 }
-                                _mgc.Fill(new Rectangle(_canvasRegion.Position.X + 3 * (b - lowestByte), _canvasRegion.Position.Y + _emulator.Registers.Length + 8 + j * 2 + 1, 3, 2), Ch.BlockFull, color);
+                                _mgc.Fill(new Rectangle(_canvasRegion.Position.X + 3 * (b - lowestByte) + 1, _canvasRegion.Position.Y + _emulator.Registers.Length + 8 + j * 2 + 1, 3, 2), Ch.BlockFull, color);
                                 j++;
                             }
                         }
+
+                        Vec controllerDrawOrigin = new Vec(26, _emulator.Registers.Length + 9) + _canvasRegion.Position;
+                        _mgc.Fill(new Rectangle(controllerDrawOrigin + new Vec(4, 6), new Vec(17, 7)), Ch.BlockFull, new Color(51, 51, 51));
+                        _mgc.Fill(new Rectangle(controllerDrawOrigin + new Vec(5, 5), new Vec(3, 1)), Ch.BlockFull, new Color(51, 51, 51));
+                        _mgc.Fill(new Rectangle(controllerDrawOrigin + new Vec(8, 12), new Vec(9, 1)), Ch.Space, Color.White);
+                        _mgc.Fill(new Rectangle(controllerDrawOrigin + new Vec(4, 14), new Vec(2, 1)), Ch.BlockFull, new Color(51, 51, 51));
+                        _mgc.Fill(new Rectangle(controllerDrawOrigin + new Vec(19, 14), new Vec(2, 1)), Ch.BlockFull, new Color(51, 51, 51));
+                        _mgc.Fill(new Rectangle(controllerDrawOrigin + new Vec(17, 5), new Vec(3, 1)), Ch.BlockFull, new Color(51, 51, 51));
+                        _mgc.Fill(new Rectangle(controllerDrawOrigin + new Vec(3, 8), new Vec(4, 6)), Ch.BlockFull, new Color(51, 51, 51));
+                        _mgc.Fill(new Rectangle(controllerDrawOrigin + new Vec(18, 8), new Vec(4, 6)), Ch.BlockFull, new Color(51, 51, 51));
+                        _mgc.SetCell(controllerDrawOrigin + new Vec(0, 3), Ch.BlockFull, new Color(204, 204, 204));
+                        _mgc.SetCell(controllerDrawOrigin + new Vec(12, 5), Ch.BlockFull, new Color(204, 204, 204));
+                        _mgc.SetCell(controllerDrawOrigin + new Vec(12, 4), Ch.Border.n1.e0.s1.w0, new Color(204, 204, 204));
+                        _mgc.SetCell(controllerDrawOrigin + new Vec(12, 3), Ch.Border.n0.e0.s1.w1, new Color(204, 204, 204));
+                        _mgc.SetCell(controllerDrawOrigin + new Vec(11, 3), Ch.Border.n1.e1.s0.w0, new Color(204, 204, 204));
+                        _mgc.SetCell(controllerDrawOrigin + new Vec(11, 2), Ch.Border.n0.e0.s1.w1, new Color(204, 204, 204));
+                        _mgc.Fill(new Rectangle(controllerDrawOrigin + new Vec(1, 3), new Vec(5, 1)), Ch.Border.n0.e1.s0.w1, new Color(204, 204, 204));
+                        _mgc.SetCell(controllerDrawOrigin + new Vec(6, 2), Ch.Border.n0.e1.s1.w0, new Color(204, 204, 204));
+                        _mgc.SetCell(controllerDrawOrigin + new Vec(6, 3), Ch.Border.n1.e0.s0.w1, new Color(204, 204, 204));
+                        _mgc.Fill(new Rectangle(controllerDrawOrigin + new Vec(7, 2), new Vec(4, 1)), Ch.Border.n0.e1.s0.w1, new Color(204, 204, 204));
+                        _mgc.PrintString(controllerDrawOrigin + new Vec(9, 12), $"[Enter]", Color.White, new Color(85, 85, 85));
+                        _mgc.PrintString(controllerDrawOrigin + new Vec(5, 10), $"{Convert.ToString(_emulator.Memory[Emulator.MEMORY_IN_CONTROLLER_BYTE], 2).PadLeft(8, '0').Aggregate(string.Empty, (i, x) => $"{i} {x}").Substring(1)}", Color.White, new Color(34, 34, 34));
+                        
+                        _mgc.Fill(new Rectangle(controllerDrawOrigin + new Vec(6, 7), new Vec(3, 2)), Ch.BlockFull, Color.Red);
+                        _mgc.Fill(new Rectangle(controllerDrawOrigin + new Vec(11, 7), new Vec(3, 2)), Ch.BlockFull, Color.Green);
+                        _mgc.Fill(new Rectangle(controllerDrawOrigin + new Vec(16, 7), new Vec(3, 2)), Ch.BlockFull, new Color(71, 129, 255));
                     }
                     break;
             }
