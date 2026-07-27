@@ -214,11 +214,11 @@ namespace MadaEmulator_MonoGame_Edition
                     _autoRun = !_autoRun;
                 }
 
-                if (_autoRun)
+                if (_autoRun && !_breakpoints[_emulator.ProgramCounter])
                 {
                     _instructionRuntimeDebt += _instructionsPerSecond * (float)mgi.FrameTime.TotalSeconds;
 
-                    while (_instructionRuntimeDebt >= 1)
+                    while (_instructionRuntimeDebt >= 1 && !_breakpoints[_emulator.ProgramCounter])
                     {
                         _emulator.Step();
                         _instructionRuntimeDebt -= 1;
