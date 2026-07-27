@@ -254,15 +254,7 @@ namespace MadaEmulator_MonoGame_Edition
                 _mgc.WriteString(mgi, drawPos, $" {Fm.Fg(Color.DarkGray)}{$"{i * 16}".PadLeft(3, ' ')} - {$"{i * 16 + 15}".PadLeft(3, ' ')}:{Iterate.InBounds(i * 16, i * 16 + 16).Aggregate(string.Empty, (s, v) => 
                 {  
                     string addition = _emulator.Memory[v].ToString("X").PadLeft(2, '0');
-                    switch (addition)
-                    {
-                        case "00":
-                            addition = $"{Fm.Fg(Color.DarkGray)}{addition}";
-                            break;
-                        default:
-                            addition = $"{Fm.Fg(Color.White)}{addition}";
-                            break;
-                    }
+                    addition = $"{(addition == "00" ? Fm.Fg(Color.DarkGray) : Fm.Fg(Color.White))}{(Emulator.MEMORY_IN_ALL.Contains((byte)v) ? Fm.Bg(new Color(0, 100, 0)) : Emulator.MEMORY_OUT_ALL.Contains((byte)v) ? Fm.Bg(new Color(100, 0, 0)) : Fm.Bg(Color.Black))}{addition}{Fm.Bg(Color.Black)}";
                     return $"{s} {addition}";
                 })}");
             }

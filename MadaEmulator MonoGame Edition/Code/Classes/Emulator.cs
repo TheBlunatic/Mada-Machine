@@ -11,7 +11,21 @@ namespace MadaEmulator_MonoGame_Edition
     public class Emulator
     {
         // Constants
-        public const byte MEMORY_LOCATION_RANDOMIZER = 159;
+        public const byte MEMORY_IN_RANDOMIZER = 159;
+        public const byte MEMORY_IN_CONTROLLER_BYTE = 255;
+        public const byte MEMORY_IN_CONTROLLER_BUTTONS = 191; // Red Green Blue Enter - - - -
+
+        public static HashSet<byte> MEMORY_OUT_ALL = 
+            new HashSet<byte>() { MEMORY_IN_RANDOMIZER, MEMORY_IN_CONTROLLER_BYTE, MEMORY_IN_CONTROLLER_BUTTONS }
+            .ToHashSet();
+
+        public static readonly HashSet<byte> MEMORY_OUT_SCREEN = new HashSet<byte> { 246, 247, 248, 249, 250, 251, 252, 253 };
+        public const byte MEMORY_OUT_FLAGS = 245; // - - - - - ScreenOn ByteAcknowledge ColourAcknowledge
+
+        public static HashSet<byte> MEMORY_IN_ALL = 
+            new HashSet<byte>() { MEMORY_OUT_FLAGS }
+            .Union(MEMORY_OUT_SCREEN)
+            .ToHashSet();
 
         // Classes
         public class ProgramLine
@@ -337,7 +351,7 @@ namespace MadaEmulator_MonoGame_Edition
             InstructionCounter++;
 
             RandomSeed = new Random(RandomSeed).Next();
-            Memory[MEMORY_LOCATION_RANDOMIZER] = (byte)RandomSeed;
+            Memory[MEMORY_IN_RANDOMIZER] = (byte)RandomSeed;
 
             PushImage();
         }
@@ -736,7 +750,7 @@ namespace MadaEmulator_MonoGame_Edition
             }
 
             RandomSeed = new Random().Next();
-            Memory[MEMORY_LOCATION_RANDOMIZER] = (byte)RandomSeed;
+            Memory[MEMORY_IN_RANDOMIZER] = (byte)RandomSeed;
             PushImage();
         }
 
@@ -781,15 +795,12 @@ namespace MadaEmulator_MonoGame_Edition
 
         public byte GetMemory(byte index)
         {
+            if (MEMORY_OUT_ALL.Contains(index)) return 0;
             return Memory[index];
         }
         public void SetMemory(byte index, byte value)
         {
-            if (index == MEMORY_LOCATION_RANDOMIZER)
-            {
-                return;
-            }
-
+            if (MEMORY_IN_ALL.Contains(index)) return;
             Memory[index] = value;
         }
 
