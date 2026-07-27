@@ -114,6 +114,8 @@ namespace MadaEmulator_MonoGame_Edition
                 _showMachineCode = false;
                 _breakpoints = new bool[_emulator.Program.Count];
                 _hoveringBreakpoint = false;
+                _autoRun = false;
+                _instructionRuntimeDebt = 0;
             }
             catch (Exception e)
             {
