@@ -72,17 +72,6 @@ namespace Blunatic.Scenes
                 _rejectionStatusObject.RejectionMessage = message;
             }
         }
-        public class RejectionStatus
-        {
-            public bool HasBeenRejected { get; set; }
-            public string RejectionMessage { get; set; }
-
-            public RejectionStatus()
-            {
-                HasBeenRejected = false;
-                RejectionMessage = string.Empty;
-            }
-        }
 
         // Properties
         public bool UpdatePreviousScene => false;

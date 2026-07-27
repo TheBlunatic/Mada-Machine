@@ -14,9 +14,14 @@ namespace Blunatic.Mgc
         // Classes
         public class TextUpdatedEventArgs : EventArgs
         {
+            public MonoGameInstance MonoGameInstance;
             public MonoGameConsoleTextInput Sender { get; init; }
             public string ChangedFrom { get; init; }
             public string ChangedTo { get; init; }
+            public TextUpdatedEventArgs(MonoGameInstance mgi)
+            {
+                MonoGameInstance = mgi;
+            }
         }
 
         // Properties
@@ -75,7 +80,7 @@ namespace Blunatic.Mgc
                     _active = false;
                     string changedFrom = _valuedText;
                     _valuedText = _displayedText;
-                    TextUpdated?.Invoke(this, new TextUpdatedEventArgs() { Sender = this, ChangedFrom = changedFrom, ChangedTo = _displayedText });
+                    TextUpdated?.Invoke(this, new TextUpdatedEventArgs(mgi) { Sender = this, ChangedFrom = changedFrom, ChangedTo = _displayedText });
                     _displayedText = _valuedText;
                 }
                 else

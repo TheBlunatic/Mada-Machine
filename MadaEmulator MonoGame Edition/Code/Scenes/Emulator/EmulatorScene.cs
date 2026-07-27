@@ -19,6 +19,11 @@ namespace MadaEmulator_MonoGame_Edition
             "Load",
         };
 
+        private static readonly string[] CONFIG_BUTTON_DROPDOWN_ITEMS =
+        {
+            "Clock Speed",
+        };
+
         // Enums
         private enum LowerLeftDisplayType
         {
@@ -34,6 +39,7 @@ namespace MadaEmulator_MonoGame_Edition
         private MonoGameConsole _mgc;
 
         private MonoGameConsoleButton _fileButton;
+        private MonoGameConsoleButton _configButton;
         private MonoGameConsoleButton _helpButton;
 
         private MonoGameConsoleRegion _canvasRegion;
@@ -50,6 +56,10 @@ namespace MadaEmulator_MonoGame_Edition
         private string _programPath;
         private string _programDirectory;
 
+        private float _instructionsPerSecond;
+        private float _instructionRuntimeDebt;
+        private bool _autoRun;
+
         private Emulator _emulator;
 
         private LowerLeftDisplayType _lowerLeftDisplay;
@@ -61,7 +71,9 @@ namespace MadaEmulator_MonoGame_Edition
 
             _fileButton = new MonoGameConsoleButton(mgi, new Vec(1, 1), "File", true);
             _mgc.AddElement(_fileButton);
-            _helpButton = new MonoGameConsoleButton(mgi, new Vec(10, 1), "Help", true);
+            _configButton = new MonoGameConsoleButton(mgi, new Vec(10, 1), "Config", true);
+            _mgc.AddElement(_configButton);
+            _helpButton = new MonoGameConsoleButton(mgi, new Vec(21, 1), "Help", true);
             _mgc.AddElement(_helpButton);
 
             _canvasRegion = new MonoGameConsoleRegion(new Rectangle(1, 3, _mgc.Dimensions.X - 2, _mgc.Dimensions.Y - 4));
@@ -77,6 +89,10 @@ namespace MadaEmulator_MonoGame_Edition
             _emulator = null;
             _showMachineCode = true;
             _breakpoints = null;
+
+            _instructionsPerSecond = 6;
+            _autoRun = false;
+            _instructionRuntimeDebt = 0;
 
             _lowerLeftDisplay = LowerLeftDisplayType.Memory;
         }
@@ -126,6 +142,42 @@ namespace MadaEmulator_MonoGame_Edition
                     break;
             }
         }
+        public void RespondToConfigButtonDropdown(object sender, DropdownScene.DropdownResultEventArgs args)
+        {
+            switch (CONFIG_BUTTON_DROPDOWN_ITEMS[args.SelectedIndex])
+            {
+                case "Clock Speed":
+                    {
+                        ValueChangeScene valueChangeScene = new ValueChangeScene(args.MonoGameInstance, "Hertz", 7, _instructionsPerSecond.ToString().Substring(0, Math.Min(7, _instructionsPerSecond.ToString().Length)), "0123456789.");
+                        valueChangeScene.ResultSelected += RespondToClockSpeedChangeMenu;
+                        args.MonoGameInstance.SceneIn(valueChangeScene);
+                    }
+                    break;
+            }
+        }
+        public void RespondToClockSpeedChangeMenu(object sender, ValueChangeScene.ValueChangeResultEventArgs args)
+        {
+            try
+            {
+                float value = float.Parse(args.Input);
+                if (value > 1000)
+                {
+                    args.Reject("Inputted value must be less than 1000.");
+                    return;
+                }
+                _instructionsPerSecond = value;
+            }
+            catch (FormatException)
+            {
+                args.Reject("Inputted value must be a valid float.");
+                return;
+            }
+            catch (Exception e)
+            {
+                args.Reject(e.Message);
+                return;
+            }
+        }
 
         public void Update(MonoGameInstance mgi)
         {
@@ -155,31 +207,48 @@ namespace MadaEmulator_MonoGame_Edition
                         _lowerLeftDisplay--;
                     }
                 }
-
-                if (mgi.ControlWasJustPressed("progress program") || mgi.ControlIsPressed("progress program fast") && !_breakpoints[_emulator.ProgramCounter])
+                if (mgi.ControlWasJustPressed("run/pause program"))
                 {
-                    _emulator.Step();
+                    _autoRun = !_autoRun;
+                }
 
-                    if (_emulator.ProgramCounter < _programOffset)
+                if (_autoRun)
+                {
+                    _instructionRuntimeDebt += _instructionsPerSecond * (float)mgi.FrameTime.TotalSeconds;
+
+                    while (_instructionRuntimeDebt >= 1)
                     {
-                        _programOffset = _emulator.ProgramCounter;
-                    }
-                    else if (_emulator.ProgramCounter >= _programOffset + _programRegion.Dimensions.Y)
-                    {
-                        _programOffset = _emulator.ProgramCounter - _programRegion.Dimensions.Y + 1;
+                        _emulator.Step();
+                        _instructionRuntimeDebt -= 1;
                     }
                 }
-                if (mgi.ControlWasJustPressed("regress program") || mgi.ControlIsPressed("regress program fast") && !_breakpoints[_emulator.ProgramCounter])
+                else
                 {
-                    _emulator.Rewind();
+                    if (mgi.ControlWasJustPressed("progress program") || (mgi.ControlIsPressed("progress program fast")) && !_breakpoints[_emulator.ProgramCounter])
+                    {
+                        _emulator.Step();
 
-                    if (_emulator.ProgramCounter < _programOffset)
-                    {
-                        _programOffset = _emulator.ProgramCounter;
+                        if (_emulator.ProgramCounter < _programOffset)
+                        {
+                            _programOffset = _emulator.ProgramCounter;
+                        }
+                        else if (_emulator.ProgramCounter >= _programOffset + _programRegion.Dimensions.Y)
+                        {
+                            _programOffset = _emulator.ProgramCounter - _programRegion.Dimensions.Y + 1;
+                        }
                     }
-                    else if (_emulator.ProgramCounter >= _programOffset + _programRegion.Dimensions.Y)
+                    if (mgi.ControlWasJustPressed("regress program") || mgi.ControlIsPressed("regress program fast") && !_breakpoints[_emulator.ProgramCounter])
                     {
-                        _programOffset = _emulator.ProgramCounter - _programRegion.Dimensions.Y + 1;
+                        _emulator.Rewind();
+
+                        if (_emulator.ProgramCounter < _programOffset)
+                        {
+                            _programOffset = _emulator.ProgramCounter;
+                        }
+                        else if (_emulator.ProgramCounter >= _programOffset + _programRegion.Dimensions.Y)
+                        {
+                            _programOffset = _emulator.ProgramCounter - _programRegion.Dimensions.Y + 1;
+                        }
                     }
                 }
 
@@ -221,6 +290,14 @@ namespace MadaEmulator_MonoGame_Edition
             {
                 DropdownScene dropdownScene = new DropdownScene(mgi, _mgc.Dimensions, _fileButton.Position + Vec.East, FILE_BUTTON_DROPDOWN_ITEMS);
                 dropdownScene.ResultSelected += RespondToFileButtonDropdown;
+                mgi.SceneIn(dropdownScene);
+                return;
+            }
+
+            if (_configButton.IsLeftClicked)
+            {
+                DropdownScene dropdownScene = new DropdownScene(mgi, _mgc.Dimensions, _configButton.Position + Vec.East, CONFIG_BUTTON_DROPDOWN_ITEMS);
+                dropdownScene.ResultSelected += RespondToConfigButtonDropdown;
                 mgi.SceneIn(dropdownScene);
                 return;
             }
@@ -338,7 +415,7 @@ namespace MadaEmulator_MonoGame_Edition
                     }
                     break;
             }
-            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, 2), $"Program:");
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, 2), $"Program: {(_autoRun ? $"{Fm.Fg(Color.Yellow)}RUNNING at {_instructionsPerSecond}Hz {Fm.Fg(new Color(80, 80, 80))}({_instructionRuntimeDebt*100}%)" : string.Empty)}");
             for (i = _programOffset; i < _emulator.ProgramText.Length && i + 4 - _programOffset < _canvasRegion.Dimensions.Y; i++)
             {
                 _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, i + 4 - _programOffset), $"{(_hoveringBreakpoint && _hoveredLine == i ? $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}○" : $"{Fm.Fg(Color.DarkRed)}○")}" : $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}○" : $" ")}")}{Fm.Fg(new Color(60, 60, 60))}{$"{i}".PadLeft(3, ' ')}{(_emulator.ProgramCounter == i ? $"{(_emulator.IsHalted ? Fm.Fg(Color.Green) : (_breakpoints[i] ? Fm.Fg(Color.OrangeRed) : Fm.Fg(Color.Yellow)))} " : $"{Fm.Fg(Color.White)} ")}{(i == _hoveredLine ? Fm.Bg(new Color(60, 60, 60)) : string.Empty)}{(_showMachineCode ? _emulator.ProgramBinary[i] : _emulator.ProgramText[i])}{new string(' ', _programRegion.Dimensions.X)}", _programRegion.Dimensions.X - 4, MonoGameConsole.WrapType.Cut);
