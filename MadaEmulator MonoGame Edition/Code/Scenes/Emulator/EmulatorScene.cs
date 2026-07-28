@@ -115,6 +115,35 @@ namespace MadaEmulator_MonoGame_Edition
         }
 
         // Methods
+        public void DoLoadMenu(MonoGameInstance mgi)
+        {
+            FileExplorerScene fileExplorerScene;
+            try
+            {
+                fileExplorerScene = new FileExplorerScene(mgi, FileExplorerScene.Mode.Open, _programDirectory);
+            }
+            catch
+            {
+                fileExplorerScene = new FileExplorerScene(mgi, FileExplorerScene.Mode.Open, "Resources\\Programs");
+            }
+            fileExplorerScene.FileSelected += RespondToFileExplorer;
+            mgi.SceneIn(fileExplorerScene);
+        }
+        public void LoadProgramFromPath(string path)
+        {
+
+            _programPath = path;
+            _programDirectory = _programPath.Substring(0, _programPath.Length - _programPath.Split('\\').Last().Length - 1);
+            _emulator = new Emulator(_programPath);
+
+            _programOffset = 0;
+            _showMachineCode = false;
+            _breakpoints = new bool[_emulator.Program.Count];
+            _hoveringBreakpoint = false;
+            _autoRun = false;
+            _instructionRuntimeDebt = 0;
+        }
+
         public void RespondToFileExplorer(object sender, FileExplorerScene.FileExplorerResultEventArgs args)
         {
             if (!args.Path.EndsWith(".txt"))
@@ -124,15 +153,7 @@ namespace MadaEmulator_MonoGame_Edition
             }
             try
             {
-                _programPath = args.Path;
-                _programDirectory = _programPath.Substring(0, _programPath.Length - _programPath.Split('\\').Last().Length - 1);
-                _emulator = new Emulator(_programPath);
-                _programOffset = 0;
-                _showMachineCode = false;
-                _breakpoints = new bool[_emulator.Program.Count];
-                _hoveringBreakpoint = false;
-                _autoRun = false;
-                _instructionRuntimeDebt = 0;
+                LoadProgramFromPath(args.Path);
             }
             catch (Exception e)
             {
@@ -146,17 +167,7 @@ namespace MadaEmulator_MonoGame_Edition
             {
                 case "Load":
                     {
-                        FileExplorerScene fileExplorerScene;
-                        try
-                        {
-                            fileExplorerScene = new FileExplorerScene(args.MonoGameInstance, FileExplorerScene.Mode.Open, _programDirectory);
-                        }
-                        catch
-                        {
-                            fileExplorerScene = new FileExplorerScene(args.MonoGameInstance, FileExplorerScene.Mode.Open, "Resources\\Programs");
-                        }
-                        fileExplorerScene.FileSelected += RespondToFileExplorer;
-                        args.MonoGameInstance.SceneIn(fileExplorerScene);
+                        DoLoadMenu(args.MonoGameInstance);
                     }
                     break;
             }
@@ -206,6 +217,25 @@ namespace MadaEmulator_MonoGame_Edition
             if (mgi.ControlWasJustPressed("escape"))
             {
                 mgi.SceneOut();
+                return;
+            }
+
+            if (mgi.ControlWasJustPressed("load program"))
+            {
+                DoLoadMenu(mgi);
+                return;
+            }
+
+            if (mgi.ControlWasJustPressed("reload program"))
+            {
+                try
+                {
+                    LoadProgramFromPath(_programPath);
+                }
+                catch (Exception e)
+                {
+                    mgi.SceneIn(new PopupScene(mgi, PopupScene.Type.Error, e.Message));
+                }
                 return;
             }
 
