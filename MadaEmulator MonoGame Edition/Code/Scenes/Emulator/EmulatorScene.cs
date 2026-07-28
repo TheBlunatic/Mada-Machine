@@ -234,7 +234,7 @@ namespace MadaEmulator_MonoGame_Edition
         {
             _programOffset = 0;
             _showMachineCode = false;
-            _breakpoints = new bool[_emulator.Program != null ? _emulator.Program.Count : 0];
+            _breakpoints = new bool[128];
             _hoveringBreakpoint = false;
             _autoRun = false;
             _instructionRuntimeDebt = 0;
@@ -392,6 +392,15 @@ namespace MadaEmulator_MonoGame_Edition
                             }
                         }
                     }
+
+                    if (_emulator.ProgramCounter < _programOffset)
+                    {
+                        _programOffset = _emulator.ProgramCounter;
+                    }
+                    else if (_emulator.ProgramCounter >= _programOffset + _programRegion.Dimensions.Y)
+                    {
+                        _programOffset = _emulator.ProgramCounter - _programRegion.Dimensions.Y + 1;
+                    }
                 }
                 else
                 {
@@ -428,21 +437,21 @@ namespace MadaEmulator_MonoGame_Edition
                 if (_programRegion.IsHovered)
                 {
                     int scrollThisTick = mgi.CursorState.GetCursorScrollThisTick();
-                    if (scrollThisTick != 0 && _emulator.ProgramText.Length > _programRegion.Dimensions.Y)
+                    if (scrollThisTick != 0 && _emulator.ProgramText.Count > _programRegion.Dimensions.Y)
                     {
                         _programOffset -= Math.Sign(scrollThisTick);
                         if (_programOffset < 0)
                         {
                             _programOffset = 0;
                         }
-                        else if (_programOffset > _emulator.ProgramText.Length - _programRegion.Dimensions.Y)
+                        else if (_programOffset > _emulator.ProgramText.Count - _programRegion.Dimensions.Y)
                         {
-                            _programOffset = _emulator.ProgramText.Length - _programRegion.Dimensions.Y;
+                            _programOffset = _emulator.ProgramText.Count - _programRegion.Dimensions.Y;
                         }
                     }
                     Vec relativeCursorPosition = _programRegion.GetRelativePositionOfScreenPosition(hoveredCell);
                     int hoveredIndex = relativeCursorPosition.Y + _programOffset;
-                    if (hoveredIndex < _emulator.ProgramText.Length && hoveredIndex >= 0)
+                    if (hoveredIndex < _emulator.ProgramText.Count && hoveredIndex >= 0)
                     {
                         _hoveredLine = hoveredIndex;
                         if (relativeCursorPosition.X == 0)
@@ -621,7 +630,7 @@ namespace MadaEmulator_MonoGame_Edition
                     break;
             }
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, 2), $"Program: {(_autoRun ? $"{Fm.Fg(Color.Yellow)}RUNNING at {_instructionsPerSecond}Hz {Fm.Fg(new Color(80, 80, 80))}({_instructionRuntimeDebt*100}%)" : string.Empty)}");
-            for (i = _programOffset; i < _emulator.ProgramText.Length && i + 4 - _programOffset < _canvasRegion.Dimensions.Y; i++)
+            for (i = _programOffset; i < _emulator.ProgramText.Count && i + 4 - _programOffset < _canvasRegion.Dimensions.Y; i++)
             {
                 _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, i + 4 - _programOffset), $"{(_hoveringBreakpoint && _hoveredLine == i ? $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}○" : $"{Fm.Fg(Color.DarkRed)}○")}" : $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}○" : $" ")}")}{Fm.Fg(new Color(60, 60, 60))}{$"{i}".PadLeft(3, ' ')}{(_emulator.ProgramCounter == i ? $"{(_emulator.IsHalted ? Fm.Fg(Color.Green) : (_breakpoints[i] ? Fm.Fg(Color.OrangeRed) : Fm.Fg(Color.Yellow)))} " : $"{Fm.Fg(Color.White)} ")}{(i == _hoveredLine ? Fm.Bg(new Color(60, 60, 60)) : string.Empty)}{(_showMachineCode ? _emulator.ProgramBinary[i] : _emulator.ProgramText[i])}{new string(' ', _programRegion.Dimensions.X)}", _programRegion.Dimensions.X - 4, MonoGameConsole.WrapType.Cut);
             }

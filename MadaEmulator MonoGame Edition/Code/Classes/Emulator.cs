@@ -152,9 +152,9 @@ namespace MadaEmulator_MonoGame_Edition
         public Controller Controller;
         public Screen Screen;
 
-        public string[] ProgramText { get; private set; }
+        public List<string> ProgramText { get; private set; }
         public List<ProgramLine> Program { get; private set; }
-        public string[] ProgramBinary { get; private set; }
+        public List<string> ProgramBinary { get; private set; }
 
         public Stack<RunImage> History { get; private set; }
 
@@ -507,6 +507,10 @@ namespace MadaEmulator_MonoGame_Edition
                 {
                     if (lineTokens[i].Item1 == Token.Label)
                     {
+                        if (labels.ContainsKey(lineTokens[i].Item2))
+                        {
+                            throw new FormatException($"Line {lineIndex}: The label '{lineTokens[i].Item2}' has already been defined at line {labels[lineTokens[i].Item2]}.");
+                        }
                         labels.Add(lineTokens[i].Item2, lineIndex);
                         labelCount++;
                     }
@@ -701,10 +705,16 @@ namespace MadaEmulator_MonoGame_Edition
                 }
 
                 Program.Add(new ProgramLine(opcode, values.ToArray()));
-                ProgramText = program;
             }
 
-            ProgramBinary = new string[Program.Count];
+            ProgramText = program.ToList();
+
+            if (ProgramText.Count > 128)
+            {
+                throw new Exception($"The instruction count ({ProgramText.Count}) exceeds the maximum of 128.");
+            }
+
+            ProgramBinary = new List<string>();
             for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
             {
                 ProgramLine line = Program[lineIndex];
@@ -739,45 +749,45 @@ namespace MadaEmulator_MonoGame_Edition
                     case Opcode.NOP:
                     case Opcode.RET:
                     case Opcode.HLT:
-                        ProgramBinary[lineIndex] = combine(opcode(), blank, blank, blank);
+                        ProgramBinary.Add(combine(opcode(), blank, blank, blank));
                         break;
                     case Opcode.ADD:
                     case Opcode.SUB:
                     case Opcode.NOR:
                     case Opcode.AND:
                     case Opcode.XOR:
-                        ProgramBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), get4(line.Operands[2]));
+                        ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), get4(line.Operands[2])));
                         break;
                     case Opcode.LDI:
                     case Opcode.ADI:
-                        ProgramBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), get8(line.Operands[1]));
+                        ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), get8(line.Operands[1])));
                         break;
                     case Opcode.JMP:
                     case Opcode.CAL:
-                        ProgramBinary[lineIndex] = combine(opcode(), blank, get7(line.Operands[0]));
+                        ProgramBinary.Add(combine(opcode(), blank, get7(line.Operands[0])));
                         break;
                     case Opcode.BNC:
-                        ProgramBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), get7(line.Operands[1]));
+                        ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), get7(line.Operands[1])));
                         break;
                     case Opcode.RSH:
                     case Opcode.LOD:
                         if (line.Operands.Length == 2)
                         {
-                            ProgramBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), blank, get4(line.Operands[1]));
+                            ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), blank, get4(line.Operands[1])));
                         }
                         else
                         {
-                            ProgramBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), get4(line.Operands[2]));
+                            ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), get4(line.Operands[2])));
                         }
                         break;
                     case Opcode.STR:
                         if (line.Operands.Length == 2)
                         {
-                            ProgramBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), blank);
+                            ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), blank));
                         }
                         else
                         {
-                            ProgramBinary[lineIndex] = combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), get4(line.Operands[2]));
+                            ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), get4(line.Operands[2])));
                         }
                         break;
                 }
@@ -791,6 +801,17 @@ namespace MadaEmulator_MonoGame_Edition
         public void SetProgramCounter(byte value)
         {
             ProgramCounter = value;
+            if (ProgramCounter > 127)
+            {
+                ProgramCounter -= 128;
+            }
+
+            while (ProgramCounter >= Program.Count)
+            {
+                Program.Add(new ProgramLine(Opcode.NOP, new string[] { "0000", "0000", "0000" }));
+                ProgramText.Add("NOP");
+                ProgramBinary.Add("0000 0000 0000 0000");
+            }
 
             if (Program[ProgramCounter].Opcode == Opcode.HLT)
             {
