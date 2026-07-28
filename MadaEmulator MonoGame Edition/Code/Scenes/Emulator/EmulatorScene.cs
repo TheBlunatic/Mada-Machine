@@ -321,7 +321,7 @@ namespace MadaEmulator_MonoGame_Edition
                         _lowerLeftDisplay--;
                     }
                 }
-                if (mgi.ControlWasJustPressed("run/pause program"))
+                if (mgi.ControlWasJustPressed("run/pause program") && !_emulator.IsHalted)
                 {
                     _autoRun = !_autoRun;
                 }
@@ -367,15 +367,30 @@ namespace MadaEmulator_MonoGame_Edition
                     }
                 }
 
-                if (_autoRun && !_breakpoints[_emulator.ProgramCounter])
+                if (_autoRun)
                 {
-                    _instructionRuntimeDebt += _instructionsPerSecond * (float)mgi.FrameTime.TotalSeconds;
-
-                    while (_instructionRuntimeDebt >= 1 && !_breakpoints[_emulator.ProgramCounter])
+                    if (_emulator.IsHalted)
                     {
-                        _emulator.Step();
+                        _autoRun = false;
+                        _instructionRuntimeDebt = 0;
+                    }
+                    else
+                    {
+                        _instructionRuntimeDebt += _instructionsPerSecond * (float)mgi.FrameTime.TotalSeconds;
 
-                        _instructionRuntimeDebt -= 1;
+                        while (_instructionRuntimeDebt >= 1)
+                        {
+                            _emulator.Step();
+
+                            _instructionRuntimeDebt -= 1;
+
+                            if (_emulator.IsHalted || _breakpoints[_emulator.ProgramCounter])
+                            {
+                                _autoRun = false;
+                                _instructionRuntimeDebt = 0;
+                                break;
+                            }
+                        }
                     }
                 }
                 else
