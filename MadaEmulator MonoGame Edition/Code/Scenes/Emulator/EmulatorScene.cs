@@ -298,14 +298,20 @@ namespace MadaEmulator_MonoGame_Edition
                 return;
             }
 
-            if (mgi.ControlWasJustPressed("reload program"))
-            {
-                DoReloadMenu(mgi);
-                return;
-            }
-
             if (_emulator != null)
             {
+                if (mgi.ControlWasJustPressed("reload program"))
+                {
+                    DoReloadMenu(mgi);
+                    return;
+                }
+
+                if (mgi.ControlWasJustPressed("restart program"))
+                {
+                    ResetEmulatorEnvironment();
+                    _emulator.Reset();
+                }
+
                 if (mgi.ControlWasJustPressed("toggle machine code"))
                 {
                     _showMachineCode = !_showMachineCode;
