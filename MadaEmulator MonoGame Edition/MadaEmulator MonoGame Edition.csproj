@@ -16,6 +16,7 @@
     <None Remove="Resources\Programs\screennoise.txt" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Icon.ico" />
     <Content Include="Resources\Programs\bitcentrifuge.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
