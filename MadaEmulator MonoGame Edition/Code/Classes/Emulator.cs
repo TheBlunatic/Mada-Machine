@@ -8,6 +8,12 @@ using System.Threading.Tasks;
 
 namespace MadaEmulator_MonoGame_Edition
 {
+    public interface IPeripheral
+    {
+        public void InputToEmulator(Emulator emulator);
+        public void OutputFromEmulator(Emulator emulator);
+        public IPeripheral Clone();
+    }
     public class Emulator
     {
         // Constants
@@ -50,7 +56,10 @@ namespace MadaEmulator_MonoGame_Edition
             public byte[] Memory { get; set; }
             public int RandomSeed { get; set; }
 
-            public RunImage(byte[] registers, Stack<byte> callStack, byte programCounter, int instructionCounter, Dictionary<Condition, bool> flags, bool halted, byte[] memory, int randomSeed)
+            public Controller Controller { get; set; }
+            public Screen Screen { get; set; }
+
+            public RunImage(byte[] registers, Stack<byte> callStack, byte programCounter, int instructionCounter, Dictionary<Condition, bool> flags, bool halted, byte[] memory, int randomSeed, Controller controller, Screen screen)
             {
                 Registers = new byte[registers.Length];
                 for (int i = 0; i < registers.Length; i++)
@@ -85,6 +94,9 @@ namespace MadaEmulator_MonoGame_Edition
                 }
 
                 RandomSeed = randomSeed;
+
+                Controller = (Controller)controller.Clone();
+                Screen = (Screen)screen.Clone();
             }
         }
 
@@ -137,6 +149,9 @@ namespace MadaEmulator_MonoGame_Edition
 
         public Dictionary<Condition, bool> Flags { get; private set; }
 
+        public Controller Controller;
+        public Screen Screen;
+
         public string[] ProgramText { get; private set; }
         public List<ProgramLine> Program { get; private set; }
         public string[] ProgramBinary { get; private set; }
@@ -146,9 +161,10 @@ namespace MadaEmulator_MonoGame_Edition
         // Constructors
         public Emulator(string path)
         {
-            Reset();
             Program = new List<ProgramLine>();
             LoadProgram(path);
+
+            Reset();
         }
 
         // Methods
@@ -160,6 +176,7 @@ namespace MadaEmulator_MonoGame_Edition
             InstructionCounter = 0;
             IsHalted = false;
             Memory = new byte[256];
+
             Flags = new Dictionary<Condition, bool>()
             {
                 {Condition.Z, false },
@@ -167,7 +184,15 @@ namespace MadaEmulator_MonoGame_Edition
                 {Condition.C, false },
                 {Condition.NC, false },
             };
+
+            Controller = new Controller(this);
+            Screen = new Screen(this);
+
+            RandomSeed = new Random().Next();
+            Memory[MEMORY_IN_RANDOMIZER] = (byte)RandomSeed;
+
             History = new Stack<RunImage>();
+            PushImage();
         }
         public void RestoreImage(RunImage runImage)
         {
@@ -179,10 +204,12 @@ namespace MadaEmulator_MonoGame_Edition
             IsHalted = runImage.IsHalted;
             Memory = runImage.Memory;
             RandomSeed = runImage.RandomSeed;
+            Controller = runImage.Controller;
+            Screen = runImage.Screen;
         }
         public void PushImage()
         {
-            History.Push(new RunImage(Registers, CallStack, ProgramCounter, InstructionCounter, Flags, IsHalted, Memory, RandomSeed));
+            History.Push(new RunImage(Registers, CallStack, ProgramCounter, InstructionCounter, Flags, IsHalted, Memory, RandomSeed, Controller, Screen));
         }
 
         public byte Add(byte x, byte y)
@@ -259,6 +286,10 @@ namespace MadaEmulator_MonoGame_Edition
         public void Step()
         {
             if (IsHalted) return;
+
+            Controller.InputToEmulator(this);
+            Screen.InputToEmulator(this);
+
             switch (Program[ProgramCounter].Opcode)
             {
                 case Opcode.NOP:
@@ -352,6 +383,9 @@ namespace MadaEmulator_MonoGame_Edition
 
             RandomSeed = new Random(RandomSeed).Next();
             Memory[MEMORY_IN_RANDOMIZER] = (byte)RandomSeed;
+
+            Controller.OutputFromEmulator(this);
+            Screen.OutputFromEmulator(this);
 
             PushImage();
         }
@@ -748,10 +782,6 @@ namespace MadaEmulator_MonoGame_Edition
                         break;
                 }
             }
-
-            RandomSeed = new Random().Next();
-            Memory[MEMORY_IN_RANDOMIZER] = (byte)RandomSeed;
-            PushImage();
         }
 
         public void IncrementProgramCounter()

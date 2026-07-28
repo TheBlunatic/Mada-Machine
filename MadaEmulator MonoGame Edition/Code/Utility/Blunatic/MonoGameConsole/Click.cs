@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Blunatic.Core;
+using Microsoft.Xna.Framework;
 
 namespace Blunatic.Mgc
 {
@@ -105,6 +106,10 @@ namespace Blunatic.Mgc
             }
 
             // Methods
+            public void ChangeBounds(Rectangle rectangle)
+            {
+                _confine = rectangle;
+            }
             public void Update(MonoGameInstance mgi, MonoGameConsole mgc)
             {
                 _updateClickDetection(mgi, mgc);

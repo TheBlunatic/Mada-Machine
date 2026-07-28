@@ -20,8 +20,8 @@ namespace Blunatic.Mgc
         }
 
         // Properties
-        public Vec Position => Vec.GetXY(_area);
-        public Vec Dimensions => Vec.GetDimensions(_area);
+        public Vec Position { get { return Vec.GetXY(_area); } set { _area = new Rectangle(value, Vec.GetDimensions(_area)); ClickDetector.ChangeBounds(_area); } }
+        public Vec Dimensions { get { return Vec.GetDimensions(_area); } set { _area = new Rectangle(Vec.GetXY(_area), value); ClickDetector.ChangeBounds(_area); } }
         public bool CapturingControls => false;
 
         public ConsoleClick.Detector ClickDetector { get; private set; }
@@ -55,11 +55,6 @@ namespace Blunatic.Mgc
         }
 
         // Methods
-        public void Centre()
-        {
-            _area.X -= _area.Width / 2;
-            _area.Y -= _area.Height / 2;
-        }
         public Vec GetRelativePositionOfScreenPosition(Vec screenPosition)
         {
             return screenPosition - Position;
