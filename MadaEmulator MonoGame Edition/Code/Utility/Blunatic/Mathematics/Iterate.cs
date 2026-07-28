@@ -16,5 +16,30 @@ namespace Blunatic.Mathematics
                 yield return i++;
             }
         }
+
+        public static void Each<T>(IEnumerable<T> enumerable, Action<T> action )
+        {
+            foreach (T item in enumerable) action(item);
+        }
+        public static void Each<T>(IEnumerable<T> enumerable, Func<T, bool> condition, Action<T> action)
+        {
+            foreach (T item in enumerable) if (condition(item)) action(item);
+        }
+        public static void Each<T>(IEnumerable<T> enumerable, Func<T, bool> condition, Action<T> action, bool breakWhenTrue)
+        {
+            if (!breakWhenTrue)
+            {
+                Each(enumerable, condition, action);
+                return;
+            }
+            foreach (T item in enumerable)
+            {
+                if (condition(item))
+                {
+                    action(item);
+                    return;
+                }
+            }
+        }
     }
 }

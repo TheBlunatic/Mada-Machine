@@ -13,16 +13,31 @@ namespace MadaEmulator_MonoGame_Edition
 {
     public class EmulatorScene : IScene
     {
-        // Constants
-        private static readonly string[] FILE_BUTTON_DROPDOWN_ITEMS =
+        // Structs
+        private struct TaskbarButtonEntry
         {
-            "Load",
-        };
+            public MonoGameConsoleButton Button { get; set; }
+            public Func<MonoGameInstance, IEnumerable<string>> Options;
+            public Action<object, DropdownScene.DropdownResultEventArgs> Callback;
 
-        private static readonly string[] CONFIG_BUTTON_DROPDOWN_ITEMS =
-        {
-            "Clock Speed",
-        };
+            public TaskbarButtonEntry(MonoGameConsoleButton button, Func<MonoGameInstance, IEnumerable<string>> options, Action<object, DropdownScene.DropdownResultEventArgs> callback)
+            {
+                Button = button;
+                Options = options;
+                Callback = callback;
+            }
+
+            private void _insertCallback(object sender, DropdownScene.DropdownResultEventArgs args) => Callback(sender, args);
+
+            public bool IsPressed() => Button.IsLeftClicked;
+            public void Activate(MonoGameInstance mgi, MonoGameConsole _mgc)
+            {
+                DropdownScene dropdownScene = new DropdownScene(mgi, _mgc.Dimensions, Button.Position + Vec.East, Options(mgi).ToArray());
+                dropdownScene.ResultSelected += _insertCallback;
+                mgi.SceneIn(dropdownScene);
+                return;
+            }
+        }
 
         // Enums
         private enum LowerLeftDisplayType
@@ -38,9 +53,7 @@ namespace MadaEmulator_MonoGame_Edition
         // Fields
         private MonoGameConsole _mgc;
 
-        private MonoGameConsoleButton _fileButton;
-        private MonoGameConsoleButton _configButton;
-        private MonoGameConsoleButton _helpButton;
+        private TaskbarButtonEntry[] _topLevelTaskbarButtonEntries;
 
         private MonoGameConsoleRegion _canvasRegion;
 
@@ -77,12 +90,14 @@ namespace MadaEmulator_MonoGame_Edition
         {
             _mgc = new MonoGameConsole(mgi, new Vec(120, 45));
 
-            _fileButton = new MonoGameConsoleButton(mgi, new Vec(1, 1), "File", true);
-            _mgc.AddElement(_fileButton);
-            _configButton = new MonoGameConsoleButton(mgi, new Vec(10, 1), "Config", true);
-            _mgc.AddElement(_configButton);
-            _helpButton = new MonoGameConsoleButton(mgi, new Vec(21, 1), "Help", true);
-            _mgc.AddElement(_helpButton);
+            _topLevelTaskbarButtonEntries = new TaskbarButtonEntry[]
+            {
+                new TaskbarButtonEntry(new MonoGameConsoleButton(mgi, new Vec(1, 1), "File"), GetFileButtonDropdownOptions, RespondToFileButtonDropdown),
+                new TaskbarButtonEntry(new MonoGameConsoleButton(mgi, new Vec(10, 1), "Config"), GetConfigButtonDropdownOptions, RespondToConfigButtonDropdown),
+                new TaskbarButtonEntry(new MonoGameConsoleButton(mgi, new Vec(21, 1), "Help"), GetHelpButtonDropdownOptions, RespondToHelpButtonDropdown),
+            };
+
+            Iterate.Each(_topLevelTaskbarButtonEntries, (x) => { _mgc.AddElement(x.Button); });
 
             _canvasRegion = new MonoGameConsoleRegion(new Rectangle(1, 3, _mgc.Dimensions.X - 2, _mgc.Dimensions.Y - 4));
             _mgc.AddElement(_canvasRegion);
@@ -115,6 +130,73 @@ namespace MadaEmulator_MonoGame_Edition
         }
 
         // Methods
+        public IEnumerable<string> GetFileButtonDropdownOptions(MonoGameInstance mgi)
+        {
+            yield return "Load";
+
+            if (_programPath != null)
+            {
+                yield return "Reload";
+            }
+
+            yield break;
+        }
+        public IEnumerable<string> GetConfigButtonDropdownOptions(MonoGameInstance mgi)
+        {
+            if (_programPath != null)
+            {
+                yield return "Change Clock Speed";
+                yield return "Toggle Machine Code";
+            }
+
+            yield break;
+        }
+        public IEnumerable<string> GetHelpButtonDropdownOptions(MonoGameInstance mgi)
+        {
+            yield break;
+        }
+
+        public void RespondToFileButtonDropdown(object sender, DropdownScene.DropdownResultEventArgs args)
+        {
+            switch (args.SelectedValue)
+            {
+                case "Load":
+                    {
+                        DoLoadMenu(args.MonoGameInstance);
+                    }
+                    break;
+                case "Reload":
+                    {
+                        DoReloadMenu(args.MonoGameInstance);
+                    }
+                    break;
+            }
+        }
+        public void RespondToConfigButtonDropdown(object sender, DropdownScene.DropdownResultEventArgs args)
+        {
+            switch (args.SelectedValue)
+            {
+                case "Change Clock Speed":
+                    {
+                        ValueChangeScene valueChangeScene = new ValueChangeScene(args.MonoGameInstance, "Hertz", 7, _instructionsPerSecond.ToString().Substring(0, Math.Min(7, _instructionsPerSecond.ToString().Length)), "0123456789.");
+                        valueChangeScene.ResultSelected += RespondToClockSpeedChangeMenu;
+                        args.MonoGameInstance.SceneIn(valueChangeScene);
+                    }
+                    break;
+                case "Toggle Machine Code":
+                    _showMachineCode = !_showMachineCode;
+                    break;
+            }
+        }
+        public void RespondToHelpButtonDropdown(object sender, DropdownScene.DropdownResultEventArgs args)
+        {
+            switch (args.SelectedValue)
+            {
+                default:
+                    break;
+            }
+        }
+
         public void DoLoadMenu(MonoGameInstance mgi)
         {
             FileExplorerScene fileExplorerScene;
@@ -129,16 +211,30 @@ namespace MadaEmulator_MonoGame_Edition
             fileExplorerScene.FileSelected += RespondToFileExplorer;
             mgi.SceneIn(fileExplorerScene);
         }
+        public void DoReloadMenu(MonoGameInstance mgi)
+        {
+            try
+            {
+                LoadProgramFromPath(_programPath);
+            }
+            catch (Exception e)
+            {
+                mgi.SceneIn(new PopupScene(mgi, PopupScene.Type.Error, e.Message));
+            }
+        }
         public void LoadProgramFromPath(string path)
         {
-
             _programPath = path;
             _programDirectory = _programPath.Substring(0, _programPath.Length - _programPath.Split('\\').Last().Length - 1);
             _emulator = new Emulator(_programPath);
 
+            ResetEmulatorEnvironment();
+        }
+        public void ResetEmulatorEnvironment()
+        {
             _programOffset = 0;
             _showMachineCode = false;
-            _breakpoints = new bool[_emulator.Program.Count];
+            _breakpoints = new bool[_emulator.Program != null ? _emulator.Program.Count : 0];
             _hoveringBreakpoint = false;
             _autoRun = false;
             _instructionRuntimeDebt = 0;
@@ -159,30 +255,6 @@ namespace MadaEmulator_MonoGame_Edition
             {
                 args.Reject(e.Message);
                 return;
-            }
-        }
-        public void RespondToFileButtonDropdown(object sender, DropdownScene.DropdownResultEventArgs args)
-        {
-            switch (FILE_BUTTON_DROPDOWN_ITEMS[args.SelectedIndex])
-            {
-                case "Load":
-                    {
-                        DoLoadMenu(args.MonoGameInstance);
-                    }
-                    break;
-            }
-        }
-        public void RespondToConfigButtonDropdown(object sender, DropdownScene.DropdownResultEventArgs args)
-        {
-            switch (CONFIG_BUTTON_DROPDOWN_ITEMS[args.SelectedIndex])
-            {
-                case "Clock Speed":
-                    {
-                        ValueChangeScene valueChangeScene = new ValueChangeScene(args.MonoGameInstance, "Hertz", 7, _instructionsPerSecond.ToString().Substring(0, Math.Min(7, _instructionsPerSecond.ToString().Length)), "0123456789.");
-                        valueChangeScene.ResultSelected += RespondToClockSpeedChangeMenu;
-                        args.MonoGameInstance.SceneIn(valueChangeScene);
-                    }
-                    break;
             }
         }
         public void RespondToClockSpeedChangeMenu(object sender, ValueChangeScene.ValueChangeResultEventArgs args)
@@ -228,14 +300,7 @@ namespace MadaEmulator_MonoGame_Edition
 
             if (mgi.ControlWasJustPressed("reload program"))
             {
-                try
-                {
-                    LoadProgramFromPath(_programPath);
-                }
-                catch (Exception e)
-                {
-                    mgi.SceneIn(new PopupScene(mgi, PopupScene.Type.Error, e.Message));
-                }
+                DoReloadMenu(mgi);
                 return;
             }
 
@@ -377,20 +442,13 @@ namespace MadaEmulator_MonoGame_Edition
                 }
             }
 
-            if (_fileButton.IsLeftClicked)
+            foreach (TaskbarButtonEntry entry in _topLevelTaskbarButtonEntries)
             {
-                DropdownScene dropdownScene = new DropdownScene(mgi, _mgc.Dimensions, _fileButton.Position + Vec.East, FILE_BUTTON_DROPDOWN_ITEMS);
-                dropdownScene.ResultSelected += RespondToFileButtonDropdown;
-                mgi.SceneIn(dropdownScene);
-                return;
-            }
-
-            if (_configButton.IsLeftClicked)
-            {
-                DropdownScene dropdownScene = new DropdownScene(mgi, _mgc.Dimensions, _configButton.Position + Vec.East, CONFIG_BUTTON_DROPDOWN_ITEMS);
-                dropdownScene.ResultSelected += RespondToConfigButtonDropdown;
-                mgi.SceneIn(dropdownScene);
-                return;
+                if (entry.IsPressed())
+                {
+                    entry.Activate(mgi, _mgc);
+                    break;
+                }
             }
         }
 

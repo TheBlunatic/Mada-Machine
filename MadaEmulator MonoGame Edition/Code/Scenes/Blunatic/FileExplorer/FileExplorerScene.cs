@@ -204,7 +204,7 @@ namespace Blunatic.Scenes
                 }
                 else if (_mode == Mode.Open)
                 {
-                    if (_selectedEntry != null && _selectedEntry.Type == EntryType.Directory)
+                    if (_selectedEntry != null && _selectedEntry.Type == EntryType.File)
                     {
                         _attemptReturn(mgi, _selectedEntry.Path);
                         return;

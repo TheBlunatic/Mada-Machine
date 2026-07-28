@@ -17,6 +17,7 @@ namespace MadaEmulator_MonoGame_Edition
         {
             public MonoGameInstance MonoGameInstance;
             public int SelectedIndex { get; init; }
+            public string SelectedValue { get; init; }
 
             public DropdownResultEventArgs(MonoGameInstance mgi)
             {
@@ -31,6 +32,7 @@ namespace MadaEmulator_MonoGame_Edition
         // Fields
         private MonoGameConsole _mgc;
         private MonoGameConsoleButton[] _buttons;
+        private string[] _options;
         private MonoGameConsoleRegion _screenRegion;
         private Rectangle _rectangle;
 
@@ -40,10 +42,7 @@ namespace MadaEmulator_MonoGame_Edition
         // Constructors
         public DropdownScene(MonoGameInstance mgi, Vec monoGameConsoleDimensions, Vec origin, params string[] buttons)
         {
-            if (buttons.Length <= 0)
-            {
-                throw new ArgumentException("Dropdown menu must have at least one button.");
-            }
+            _options = buttons;
 
             _mgc = new MonoGameConsole(mgi, monoGameConsoleDimensions);
             _mgc.Transparency = MonoGameConsole.TransparencyType.NotWrittenTo;
@@ -68,13 +67,13 @@ namespace MadaEmulator_MonoGame_Edition
         // Methods
         public void Update(MonoGameInstance mgi)
         {
-            _mgc.Update(mgi);
-
-            if (mgi.ControlWasJustPressed("escape"))
+            if (mgi.ControlWasJustPressed("escape") || _options.Length == 0)
             {
                 mgi.SceneOut();
                 return;
             }
+
+            _mgc.Update(mgi);
 
             if (_screenRegion.IsLeftClicked || _screenRegion.IsRightClicked)
             {
@@ -83,7 +82,7 @@ namespace MadaEmulator_MonoGame_Edition
                 {
                     if (_buttons[i].IsLeftClicked)
                     {
-                        ResultSelected?.Invoke(this, new DropdownResultEventArgs(mgi) { SelectedIndex = i });
+                        ResultSelected?.Invoke(this, new DropdownResultEventArgs(mgi) { SelectedIndex = i, SelectedValue = _options[i] });
                         return;
                     }
                 }
@@ -92,6 +91,7 @@ namespace MadaEmulator_MonoGame_Edition
         }
         public void Draw(MonoGameInstance mgi)
         {
+            if (_buttons.Length == 0) return;
             _mgc.Box(_rectangle, Color.White, _buttons[0].InactiveBackgroundColor, false);
             _mgc.Fill(new Rectangle(_rectangle.X, _rectangle.Y, 1, _buttons.Length + 1), Ch.Border.n1.e1.s1.w0);
             _mgc.Fill(new Rectangle(_rectangle.X + 1, _rectangle.Y + 1, 1, _buttons.Length), Ch.Border.n0.e1.s0.w1);
