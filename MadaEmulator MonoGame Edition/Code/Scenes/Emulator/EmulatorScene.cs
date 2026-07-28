@@ -435,7 +435,7 @@ namespace MadaEmulator_MonoGame_Edition
                             for (byte a = 0b10000000; a != 0 ; a = (byte)(a >> 1))
                             {
                                 Color color;
-                                if ((a & b) != 0 && (0b00000100 & _emulator.Memory[Emulator.MEMORY_OUT_FLAGS]) == 0)
+                                if ((a & b) != 0)
                                 {
                                     color = new Color(196, 174, 144);
                                 }

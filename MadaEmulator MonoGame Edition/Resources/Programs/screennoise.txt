@@ -1,7 +1,7 @@
 ﻿LDI r2 159
 LDI r4 254
 LDI r5 245
-LDI r6 0b00000000 // 100 to turn off
+LDI r6 0b00000000 // 0b100 to turn off
 STR r5 r6
 .reset LDI r1 246
 .loop LOD r2 r0 r3

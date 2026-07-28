@@ -91,6 +91,9 @@ namespace MadaEmulator_MonoGame_Edition
             }
         }
 
+        public bool ColourAcknowledge { get { return _colourAcknowledge; } }
+        public bool EnterAcknowledge { get { return _enterAcknowledge; } }
+
         // Fields
         private bool _shockActive;
 
@@ -113,6 +116,9 @@ namespace MadaEmulator_MonoGame_Edition
             _blueActive = false;
             _enterActive = false;
             _byteInput = 0;
+
+            _enterAcknowledge = false;
+            _colourAcknowledge = false;
 
             InputToEmulator(emulator);
             OutputFromEmulator(emulator); 
