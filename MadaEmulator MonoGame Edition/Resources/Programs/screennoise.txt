@@ -8,5 +8,5 @@ STR r5 r6
 STR r1 r3
 ADI r1 1
 SUB r1 r4 r0
-BNC Z .reset
-JMP .loop
+BNC NZ .loop
+JMP .reset
