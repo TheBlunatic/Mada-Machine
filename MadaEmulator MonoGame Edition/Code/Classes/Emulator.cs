@@ -20,16 +20,18 @@ namespace MadaEmulator_MonoGame_Edition
         public const byte MEMORY_IN_RANDOMIZER = 159;
         public const byte MEMORY_IN_CONTROLLER_BYTE = 255;
         public const byte MEMORY_IN_CONTROLLER_BUTTONS = 191; // Red Green Blue Enter - - - -
+        public const byte MEMORY_IN_NIBBLE_SWAPPER = 63;
 
         public static HashSet<byte> MEMORY_IN_ALL = 
-            new HashSet<byte>() { MEMORY_IN_RANDOMIZER, MEMORY_IN_CONTROLLER_BYTE, MEMORY_IN_CONTROLLER_BUTTONS }
+            new HashSet<byte>() { MEMORY_IN_RANDOMIZER, MEMORY_IN_CONTROLLER_BYTE, MEMORY_IN_CONTROLLER_BUTTONS, MEMORY_IN_NIBBLE_SWAPPER }
             .ToHashSet();
 
         public static readonly HashSet<byte> MEMORY_OUT_SCREEN = new HashSet<byte> { 246, 247, 248, 249, 250, 251, 252, 253 };
         public const byte MEMORY_OUT_FLAGS = 245; // - - - - - ScreenOn ByteAcknowledge ColourAcknowledge
+        public const byte MEMORY_OUT_NIBBLE_SWAPPER = 31;
 
         public static HashSet<byte> MEMORY_OUT_ALL = 
-            new HashSet<byte>() { MEMORY_OUT_FLAGS }
+            new HashSet<byte>() { MEMORY_OUT_FLAGS, MEMORY_OUT_NIBBLE_SWAPPER }
             .Union(MEMORY_OUT_SCREEN)
             .ToHashSet();
 
@@ -853,6 +855,10 @@ namespace MadaEmulator_MonoGame_Edition
         {
             if (MEMORY_IN_ALL.Contains(index)) return;
             Memory[index] = value;
+            if (index == MEMORY_OUT_NIBBLE_SWAPPER)
+            {
+                Memory[MEMORY_IN_NIBBLE_SWAPPER] = (byte)((byte)(value << 4) + (byte)(value >> 4));
+            }
         }
 
         public bool GetFlag(Condition condition)
