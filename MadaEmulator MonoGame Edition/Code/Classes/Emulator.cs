@@ -392,21 +392,100 @@ namespace MadaEmulator_MonoGame_Edition
             PushImage();
         }
 
+        public static string ConvertProgramLineToMachineCode(ProgramLine programLine)
+        {
+            string opcode()
+            {
+                return get4((byte)programLine.Opcode);
+            }
+            string get8(byte value)
+            {
+                string b = Convert.ToString(value, 2).PadLeft(8, '0');
+                return b.Substring(0, 4) + " " + b.Substring(4);
+            }
+            string get7(byte value)
+            {
+                string b = Convert.ToString(value, 2).PadLeft(8, '0');
+                return "0" + b.Substring(1, 3) + " " + b.Substring(4);
+            }
+            string get4(byte value)
+            {
+                string b = Convert.ToString(value, 2).PadLeft(8, '0');
+                return b.Substring(4);
+            }
+            string combine(params string[] parts)
+            {
+                string s = parts.Aggregate(string.Empty, (i, x) => $"{i} {x}");
+                return s.Substring(1);
+            }
+            string blank = "0000";
+            switch (programLine.Opcode)
+            {
+                case Opcode.NOP:
+                case Opcode.RET:
+                case Opcode.HLT:
+                    return (combine(opcode(), blank, blank, blank));
+                case Opcode.ADD:
+                case Opcode.SUB:
+                case Opcode.NOR:
+                case Opcode.AND:
+                case Opcode.XOR:
+                    return (combine(opcode(), get4(programLine.Operands[0]), get4(programLine.Operands[1]), get4(programLine.Operands[2])));
+                case Opcode.LDI:
+                case Opcode.ADI:
+                    return (combine(opcode(), get4(programLine.Operands[0]), get8(programLine.Operands[1])));
+                case Opcode.JMP:
+                case Opcode.CAL:
+                    return (combine(opcode(), blank, get7(programLine.Operands[0])));
+                case Opcode.BNC:
+                    return (combine(opcode(), get4(programLine.Operands[0]), get7(programLine.Operands[1])));
+                case Opcode.RSH:
+                case Opcode.LOD:
+                    if (programLine.Operands.Length == 2)
+                    {
+                        return (combine(opcode(), get4(programLine.Operands[0]), blank, get4(programLine.Operands[1])));
+                    }
+                    else
+                    {
+                        return (combine(opcode(), get4(programLine.Operands[0]), get4(programLine.Operands[1]), get4(programLine.Operands[2])));
+                    }
+                case Opcode.STR:
+                    if (programLine.Operands.Length == 2)
+                    {
+                        return (combine(opcode(), get4(programLine.Operands[0]), get4(programLine.Operands[1]), blank));
+                    }
+                    else
+                    {
+                        return (combine(opcode(), get4(programLine.Operands[0]), get4(programLine.Operands[1]), get4(programLine.Operands[2])));
+                    }
+            }
+            throw new Exception("Failed to generate machine code.");
+        }
         public void LoadProgram(string programPath)
         {
-            Program.Clear();
-            Dictionary<string, byte> labels = new Dictionary<string, byte>();
-            string[] program = File.ReadAllLines(programPath);
-            for (int lineIndex = 0; lineIndex < program.Length; lineIndex++)
-            {
-                program[lineIndex] = program[lineIndex].Trim(' ');
-            }
-            (Token, string)[][] programTokens = new (Token, string)[program.Length][];
+            List<string> programText = File.ReadAllLines(programPath).ToList();
+            List<ProgramLine> program = new List<ProgramLine>();
+            List<string> programBinary = new List<string>();
 
-            for (byte lineIndex = 0; lineIndex < program.Length; lineIndex++)
+            Dictionary<string, byte> labels = new Dictionary<string, byte>();
+
+            if (programText.Count > 128)
+            {
+                throw new Exception($"The instruction count ({ProgramText.Count}) exceeds the maximum of 128.");
+            }
+
+            for (int lineIndex = 0; lineIndex < programText.Count; lineIndex++)
+            {
+                programText[lineIndex] = programText[lineIndex].Trim(' ');
+            }
+
+            (Token, string)[][] programTokens = new (Token, string)[programText.Count][];
+
+            // Divide and categorise tokens
+            for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
             {
                 List<(Token, string)> list = new List<(Token, string)>();
-                string line = program[lineIndex];
+                string line = programText[lineIndex];
                 {
                     int index = Array.IndexOf(line.ToCharArray(), '/');
                     if (index != -1)
@@ -501,6 +580,8 @@ namespace MadaEmulator_MonoGame_Edition
                 }
                 programTokens[lineIndex] = list.ToArray();
             }
+
+            // Register and remove label headers
             for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
             {
                 (Token, string)[] lineTokens = programTokens[lineIndex];
@@ -548,6 +629,8 @@ namespace MadaEmulator_MonoGame_Edition
                     throw new FormatException($"Line {lineIndex}: Line cannot have more than three operands.");
                 }
             }
+
+            // Replace label pointers with line values
             for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
             {
                 (Token, string)[] lineTokens = programTokens[lineIndex];
@@ -568,6 +651,7 @@ namespace MadaEmulator_MonoGame_Edition
                 }
             }
 
+            // Form ProgramLines
             for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
             {
                 (Token, string)[] lineTokens = programTokens[lineIndex];
@@ -711,94 +795,18 @@ namespace MadaEmulator_MonoGame_Edition
                     throw new FormatException($"Line {lineIndex}: Opcode '{opcode}' cannot accept these operands.");
                 }
 
-                Program.Add(new ProgramLine(opcode, values.ToArray()));
+                program.Add(new ProgramLine(opcode, values.ToArray()));
             }
 
-            ProgramText = program.ToList();
-
-            if (ProgramText.Count > 128)
-            {
-                throw new Exception($"The instruction count ({ProgramText.Count}) exceeds the maximum of 128.");
-            }
-
-            ProgramBinary = new List<string>();
+            // Generate Machine Code
             for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
             {
-                ProgramLine line = Program[lineIndex];
-
-                string opcode()
-                {
-                    return get4((byte)line.Opcode);
-                }
-                string get8(byte value)
-                {
-                    string b = Convert.ToString(value, 2).PadLeft(8, '0');
-                    return b.Substring(0, 4) + " " + b.Substring(4);
-                }
-                string get7(byte value)
-                {
-                    string b = Convert.ToString(value, 2).PadLeft(8, '0');
-                    return "0" + b.Substring(1, 3) + " " + b.Substring(4);
-                }
-                string get4(byte value)
-                {
-                    string b = Convert.ToString(value, 2).PadLeft(8, '0');
-                    return b.Substring(4);
-                }
-                string combine(params string[] parts)
-                {
-                    string s = parts.Aggregate(string.Empty, (i, x) => $"{i} {x}");
-                    return s.Substring(1);
-                }
-                string blank = "0000";
-                switch (line.Opcode)
-                {
-                    case Opcode.NOP:
-                    case Opcode.RET:
-                    case Opcode.HLT:
-                        ProgramBinary.Add(combine(opcode(), blank, blank, blank));
-                        break;
-                    case Opcode.ADD:
-                    case Opcode.SUB:
-                    case Opcode.NOR:
-                    case Opcode.AND:
-                    case Opcode.XOR:
-                        ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), get4(line.Operands[2])));
-                        break;
-                    case Opcode.LDI:
-                    case Opcode.ADI:
-                        ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), get8(line.Operands[1])));
-                        break;
-                    case Opcode.JMP:
-                    case Opcode.CAL:
-                        ProgramBinary.Add(combine(opcode(), blank, get7(line.Operands[0])));
-                        break;
-                    case Opcode.BNC:
-                        ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), get7(line.Operands[1])));
-                        break;
-                    case Opcode.RSH:
-                    case Opcode.LOD:
-                        if (line.Operands.Length == 2)
-                        {
-                            ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), blank, get4(line.Operands[1])));
-                        }
-                        else
-                        {
-                            ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), get4(line.Operands[2])));
-                        }
-                        break;
-                    case Opcode.STR:
-                        if (line.Operands.Length == 2)
-                        {
-                            ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), blank));
-                        }
-                        else
-                        {
-                            ProgramBinary.Add(combine(opcode(), get4(line.Operands[0]), get4(line.Operands[1]), get4(line.Operands[2])));
-                        }
-                        break;
-                }
+                programBinary.Add(ConvertProgramLineToMachineCode(program[lineIndex]));
             }
+
+            Program = program;
+            ProgramBinary = programBinary;
+            ProgramText = programText;
         }
 
         public void IncrementProgramCounter()
