@@ -533,6 +533,11 @@ namespace MadaEmulator_MonoGame_Edition
                     lineTokens = newLineTokens;
                 }
 
+                if (lineTokens.Length == 0)
+                {
+                    throw new FormatException($"Line {lineIndex}: Empty lines are not supported.");
+                }
+
                 if (lineTokens[0].Item1 != Token.Opcode || lineTokens.Where((x) => { return x.Item1 == Token.Opcode; }).ToArray().Length != 1)
                 {
                     throw new FormatException($"Line {lineIndex}: Line must have a singular leading opcode.");
