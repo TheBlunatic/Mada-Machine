@@ -471,7 +471,7 @@ namespace MadaEmulator_MonoGame_Edition
 
             if (programText.Count > 128)
             {
-                throw new Exception($"The instruction count ({ProgramText.Count}) exceeds the maximum of 128.");
+                throw new Exception($"The instruction count ({programText.Count}) exceeds the maximum of 128.");
             }
 
             for (int lineIndex = 0; lineIndex < programText.Count; lineIndex++)
