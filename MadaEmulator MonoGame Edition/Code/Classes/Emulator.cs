@@ -174,7 +174,7 @@ namespace MadaEmulator_MonoGame_Edition
         {
             Registers = new byte[16];
             CallStack = new Stack<byte>();
-            ProgramCounter = 0;
+            SetProgramCounter(0);
             InstructionCounter = 0;
             IsHalted = false;
             Memory = new byte[256];
