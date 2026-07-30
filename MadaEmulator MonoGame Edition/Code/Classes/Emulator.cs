@@ -856,6 +856,11 @@ namespace MadaEmulator_MonoGame_Edition
         }
         public void PopCallStack()
         {
+            if (CallStack.Count == 0)
+            {
+                SetProgramCounter(1);
+                return;
+            }
             SetProgramCounter((byte)(CallStack.Pop() + 1));
         }
 
