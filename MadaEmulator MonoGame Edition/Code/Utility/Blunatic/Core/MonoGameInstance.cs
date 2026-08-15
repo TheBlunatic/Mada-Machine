@@ -2,8 +2,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
-using Microsoft.Xna.Framework.Media;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -21,16 +19,22 @@ namespace Blunatic.Core
     public class MonoGameInstance : Game
     {
         // Constants
-        private static readonly string NAMESPACE = $"Blunatic";
+        private static readonly string INTERNAL_NAMESPACE = $"Blunatic";
 
         private static readonly string CONTENT_PATH = $"Content\\";
-        private static readonly string INTERNAL_CONTENT_PATH = $"{CONTENT_PATH}{NAMESPACE}\\";
-        private static readonly string TEXTURES_PATH = $"{INTERNAL_CONTENT_PATH}{TEXTURES_PATH_FOR_LOAD}";
-        private static readonly string TEXTURES_PATH_FOR_LOAD = $"{NAMESPACE}\\Textures\\";
-        private static readonly string SOUNDS_PATH = $"{INTERNAL_CONTENT_PATH}Sounds\\";
+
+        private static readonly string GAME_SUBDIRECTORY = $"Game\\";
+        private static readonly string GAME_TEXTURES_SUBDIRECTORY = $"{GAME_SUBDIRECTORY}Textures\\";
+        private static readonly string GAME_SOUND_EFFECTS_SUBDIRECTORY = $"{GAME_SUBDIRECTORY}Sound Effects\\";
+
+        private static readonly string GAME_TEXTURES_PATH = $"{CONTENT_PATH}{GAME_TEXTURES_SUBDIRECTORY}";
+        private static readonly string GAME_SOUND_EFFECTS_PATH = $"{CONTENT_PATH}{GAME_SOUND_EFFECTS_SUBDIRECTORY}";
+
+        private static readonly string INTERNAL_CONTENT_PATH = $"{CONTENT_PATH}{INTERNAL_NAMESPACE}\\";
+        private static readonly string TEXTURES_PATH_FOR_LOAD = $"{INTERNAL_NAMESPACE}\\Textures\\";
 
         private static readonly string RESOURCES_PATH = $"Resources\\";
-        private static readonly string INTERNAL_RESOURCES_PATH = $"{RESOURCES_PATH}{NAMESPACE}\\";
+        private static readonly string INTERNAL_RESOURCES_PATH = $"{RESOURCES_PATH}{INTERNAL_NAMESPACE}\\";
 
         private static readonly string CONTROLS_FILE = $"{INTERNAL_RESOURCES_PATH}controls.html";
 
@@ -85,6 +89,7 @@ namespace Blunatic.Core
         public Texture2D GlyphTexture { get; private set; }
 
         private Dictionary<string, SoundEffect> _soundDict;
+        private Dictionary<string, Texture2D> _textureDict;
 
         private int _ticks;
 
@@ -146,6 +151,10 @@ namespace Blunatic.Core
         {
             _soundDict[sound].Play();
         }
+        public Texture2D GetTexture(string texture)
+        {
+            return _textureDict[texture];
+        }
 
         public void SceneIn(IScene newScene)
         {
@@ -197,22 +206,50 @@ namespace Blunatic.Core
             _initialSceneConstructor = null;
         }
 
-        private void LoadTextures()
+        private IEnumerable<string> _getAllFilesInDirectory(string directory)
+        {
+            foreach (string file in Directory.GetFiles(directory))
+            {
+                yield return file;
+            }
+            foreach (string subdirectory in Directory.GetDirectories(directory))
+            {
+                foreach (string file in _getAllFilesInDirectory(subdirectory))
+                {
+                    yield return file;
+                }
+            }
+        }
+        private void _loadTextures()
         {
             GlyphTexture = Content.Load<Texture2D>($"{TEXTURES_PATH_FOR_LOAD}glyphs");
+
+            _textureDict = new Dictionary<string, Texture2D>();
+
+            if (!Directory.Exists(GAME_TEXTURES_PATH)) return;
+
+            foreach (string t in _getAllFilesInDirectory(GAME_TEXTURES_PATH))
+            {
+                string pathPart = t.Substring(CONTENT_PATH.Length);
+                string extension = t.Split('.').Last();
+                string contentPart = pathPart.Substring(0, pathPart.Length - (extension.Length + 1));
+                string namePart = contentPart.Substring(GAME_TEXTURES_SUBDIRECTORY.Length);
+
+                _textureDict.Add(namePart, Content.Load<Texture2D>(contentPart));
+            }
         }
-        private void LoadSoundEffects()
+        private void _loadSoundEffects()
         {
             _soundDict = new Dictionary<string, SoundEffect>();
 
-            if (!Directory.Exists(SOUNDS_PATH)) return;
+            if (!Directory.Exists(GAME_SOUND_EFFECTS_PATH)) return;
 
-            foreach (string s in Directory.GetFiles(SOUNDS_PATH))
+            foreach (string s in _getAllFilesInDirectory(GAME_SOUND_EFFECTS_PATH))
             {
                 string pathPart = s.Substring(CONTENT_PATH.Length);
                 string extension = s.Split('.').Last();
                 string contentPart = s.Substring(0, s.Length - (extension.Length + 1));
-                string namePart = contentPart.Split('\\').Last();
+                string namePart = contentPart.Substring(GAME_SOUND_EFFECTS_SUBDIRECTORY.Length);
 
                 _soundDict.Add(namePart, Content.Load<SoundEffect>(contentPart));
             }
@@ -221,8 +258,8 @@ namespace Blunatic.Core
         {
             SpriteBatch = new SpriteBatch(GraphicsDevice);
 
-            LoadTextures();
-            LoadSoundEffects();
+            _loadTextures();
+            _loadSoundEffects();
 
             PostLoadInitialisation();
         }

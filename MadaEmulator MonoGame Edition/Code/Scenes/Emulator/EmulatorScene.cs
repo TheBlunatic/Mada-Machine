@@ -90,6 +90,11 @@ namespace MadaEmulator_MonoGame_Edition
         {
             _mgc = new MonoGameConsole(mgi, new Vec(120, 45));
 
+            _hoveredLine = -1;
+            _hoveringBreakpoint = false;
+
+            ResetEmulatorEnvironment();
+
             _topLevelTaskbarButtonEntries = new TaskbarButtonEntry[]
             {
                 new TaskbarButtonEntry(new MonoGameConsoleButton(mgi, new Vec(1, 1), "File"), GetFileButtonDropdownOptions, RespondToFileButtonDropdown),
@@ -104,18 +109,12 @@ namespace MadaEmulator_MonoGame_Edition
 
             _programRegion = new MonoGameConsoleRegion(new Rectangle(_canvasRegion.Position + new Vec(63, 4), new Vec(_canvasRegion.Dimensions.X - 63, _canvasRegion.Dimensions.Y - 4)));
             _mgc.AddElement(_programRegion);
-            _programOffset = 0;
-            _hoveredLine = -1;
 
             _programPath = null;
             _programDirectory = null;
             _emulator = null;
-            _showMachineCode = true;
-            _breakpoints = null;
 
             _instructionsPerSecond = 6;
-            _autoRun = false;
-            _instructionRuntimeDebt = 0;
 
             _lowerLeftDisplay = LowerLeftDisplayType.Memory;
 
@@ -127,6 +126,7 @@ namespace MadaEmulator_MonoGame_Edition
             _controllerShockRegion = new MonoGameConsoleRegion(new Rectangle(_controllerScreenOrigin + new Vec(11, 3), new Vec(3, 4)));
             _controllerByteRegion = new MonoGameConsoleRegion(new Rectangle(_controllerScreenOrigin + new Vec(5, 10), new Vec(15, 1)));
 
+            _showMachineCode = false;
         }
 
         // Methods
@@ -234,14 +234,17 @@ namespace MadaEmulator_MonoGame_Edition
 
             ResetEmulatorEnvironment();
         }
+        public void ResetEmulator()
+        {
+            _emulator?.Reset();
+            _autoRun = false;
+            _programOffset = _emulator == null ? 0 : _emulator.ProgramCounter;
+            _instructionRuntimeDebt = 0;
+        }
         public void ResetEmulatorEnvironment()
         {
-            _programOffset = 0;
-            _showMachineCode = false;
+            ResetEmulator();
             _breakpoints = new bool[128];
-            _hoveringBreakpoint = false;
-            _autoRun = false;
-            _instructionRuntimeDebt = 0;
         }
         public void CycleDisplay()
         {
@@ -323,8 +326,7 @@ namespace MadaEmulator_MonoGame_Edition
 
                 if (mgi.ControlWasJustPressed("restart program"))
                 {
-                    ResetEmulatorEnvironment();
-                    _emulator.Reset();
+                    ResetEmulator();
                 }
 
                 if (mgi.ControlWasJustPressed("toggle machine code"))
@@ -643,7 +645,7 @@ namespace MadaEmulator_MonoGame_Edition
                     }
                     break;
             }
-            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, 2), $"Program: {(_autoRun ? $"{Fm.Fg(Color.Yellow)}RUNNING at {_instructionsPerSecond}Hz {Fm.Fg(new Color(80, 80, 80))}({_instructionRuntimeDebt*100}%)" : string.Empty)}");
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, 2), $"Program: {(_autoRun ? $"{Fm.Fg(Color.Yellow)}RUNNING at {_instructionsPerSecond}Hz {Fm.Fg(new Color(80, 80, 80))}({_instructionRuntimeDebt*100}%)" : (_emulator.IsHalted ? $"{Fm.Fg(Color.Green)}Halted" : string.Empty))}");
             for (i = _programOffset; i < _emulator.ProgramText.Count && i + 4 - _programOffset < _canvasRegion.Dimensions.Y; i++)
             {
                 _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, i + 4 - _programOffset), $"{(_hoveringBreakpoint && _hoveredLine == i ? $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}○" : $"{Fm.Fg(Color.DarkRed)}○")}" : $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}○" : $" ")}")}{Fm.Fg(new Color(60, 60, 60))}{$"{i}".PadLeft(3, ' ')}{(_emulator.ProgramCounter == i ? $"{(_emulator.IsHalted ? Fm.Fg(Color.Green) : (_breakpoints[i] ? Fm.Fg(Color.OrangeRed) : Fm.Fg(Color.Yellow)))} " : $"{Fm.Fg(Color.White)} ")}{(i == _hoveredLine ? Fm.Bg(new Color(60, 60, 60)) : string.Empty)}{(_showMachineCode ? _emulator.ProgramBinary[i] : _emulator.ProgramText[i])}{new string(' ', _programRegion.Dimensions.X)}", _programRegion.Dimensions.X - 4, MonoGameConsole.WrapType.Cut);
