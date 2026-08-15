@@ -1,6 +1,0 @@
-﻿LDI r1 0b00001111
-STR r0 r1
-LOD r0 r2
-STR r0 r1 15
-LOD r0 r1 r3
-HLT

@@ -1,0 +1,69 @@
+LDI r15 0b11110100 // screen flag memory location -1 (244)
+LDI r14 0b00000001 // position
+LDI r13 0b11111111 // direction
+LDI r12 0b10011111 // rng memory location
+LDI r11 0b00000011 // body back / controller reset
+LDI r10 0b11110100 // full speech
+LDI r9  0b10000100 // top speech
+LDI r8  0b01000100 // h middle speech
+LDI r7  0b11010100 // z back speech
+LDI r6  0b10110100 // z front speech
+LDI r5  0b10111111 // controller read memory location
+LDI r4  0b11111010 // trailing speech
+LDI r3  0b00000111 // decision mask / body front
+STR r15 r0 1
+.moving AND r13 r15 r1
+BNC Z .movingleft
+.movingright AND r14 r15 r1
+BNC Z .move
+LDI r13 0b00000001
+JMP .move
+.movingleft ADD r14 r0 r1
+BNC NZ .move
+LDI r13 0b11111111
+.move SUB r14 r13 r14
+.decide LOD r12 r2
+AND r3 r2 r1
+BNC NZ .drawmove
+AND r14 r11 r1
+BNC Z .sleepy
+XOR r14 r11 r1
+BNC NZ .thirsty
+.hungry STR r15 r10 7
+STR r15 r8 8
+STR r15 r10 9
+LDI r2 0b10000000
+JMP .drawdecision
+.sleepy STR r15 r6 7
+STR r15 r10 8
+STR r15 r7 9
+LDI r2 0b01000000
+JMP .drawdecision
+.thirsty STR r15 r9 7
+STR r15 r10 8
+STR r15 r9 9
+LDI r2 0b00100000
+.drawdecision LDI r14 0b00000100
+STR r15 r14 6
+STR r15 r4 5
+STR r15 r0 4
+STR r15 r3 3
+STR r15 r11 2
+.awaitinput LOD r5 r1
+SUB r1 r2 r1
+BNC NZ .awaitinput
+STR r15 r11 1
+STR r15 r0 1
+STR r15 r0 2
+STR r15 r0 3
+STR r15 r0 5
+STR r15 r0 9
+.drawmove ADD r15 r14 r1
+STR r1 r0 2
+STR r1 r3 3
+STR r1 r0 4
+ADD r13 r1 r1
+STR r1 r11 3
+ADD r13 r1 r1
+STR r1 r0 3
+JMP .moving

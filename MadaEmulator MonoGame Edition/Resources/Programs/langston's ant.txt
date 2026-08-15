@@ -1,0 +1,49 @@
+﻿LDI r15 246         // Screen start position
+LDI r14 64          // Data start position
+LDI r2 254          // Init upper bound
+LDI r1 255          // Starting world
+.init STR r14 r1
+STR r15 r1
+ADI r15 1
+ADI r14 1
+SUB r15 r2 r0
+BNC NZ .init
+.begin LDI r1 3     // X position (value)
+LDI r2 0b00001000   // Y position (mask)
+LDI r3 0b00000000   // Direction
+LDI r10 0b00000111  // X mask
+LDI r12 0b00000010  // Mask upper
+LDI r13 0b00000001  // Mask lower
+LDI r15 246         // Screen start position
+LDI r14 64          // Data start position
+.loop LOD r14 r1 r4
+XOR r4 r2 r4
+ADD r1 r14 r11
+STR r11 r4
+ADD r1 r15 r11
+STR r11 r4
+AND r4 r2 r4
+BNC NZ .turnleft
+.turnright ADI r3 1
+JMP .move
+.turnleft ADI r3 255
+.move AND r13 r3 r0
+BNC Z .movehorizontally
+.movevertically AND r12 r3 r0
+BNC Z .moveup
+.movedown RSH r2 r2
+ADI r2 0
+BNC NZ .loop
+LDI r2 0b10000000
+JMP .loop
+.moveup ADD r2 r2 r2
+BNC NZ .loop
+LDI r2 0b00000001
+JMP .loop
+.movehorizontally AND r12 r3 r0
+BNC Z .moveleft
+.moveright ADI r1 1
+JMP .boundx
+.moveleft ADI r1 255
+.boundx AND r10 r1 r1
+JMP .loop

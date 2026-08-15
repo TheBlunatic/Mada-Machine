@@ -1,0 +1,112 @@
+LDI r15 0b11111111
+LDI r14 73
+STR r14 r15
+LDI r14 64
+STR r14 r15
+LDI r11 0 // clearinput alt
+LDI r12 255 // byteinput
+LDI r13 245 // controller acks
+LDI r14 65 // memory start
+LDI r15 191 // controller input
+LDI r10 0 // play or paused
+.tick ADI r10 0
+BNC NZ .draw
+.skiptickcheck LDI r1 8
+.tickx ADI r1 0
+BNC Z .draw
+LDI r2 0b00000011 // top mask
+LDI r3 0b00000010 // bottom mask
+LOD r14 r1 r7 // RIGHT
+ADI r1 254
+LOD r14 r1 r5 // LEFT
+ADI r1 1
+LOD r14 r1 r6 // HERE
+.ticky AND r2 r6 r8
+BNC Z .skip
+SUB r8 r3 r0
+BNC Z .dropdown
+SUB r8 r2 r0
+BNC NZ .skip
+AND r2 r7 r0
+BNC Z .goright
+AND r2 r5 r0
+BNC NZ .skip
+.goleft XOR r3 r5 r5
+RSH r3 r3
+.finishgo ADD r3 r3 r3
+XOR r3 r6 r6
+JMP .skip
+.goright RSH r3 r3
+XOR r3 r7 r7
+JMP .finishgo
+.dropdown XOR r2 r6 r6
+.skip ADD r3 r3 r3
+BNC Z .endtickx
+ADD r2 r2 r2
+JMP .ticky
+.endtickx ADD r1 r14 r9
+ADI r9 255
+STR r9 r5 0
+STR r9 r6 1
+STR r9 r7 2
+JMP .tickx
+.clearinput STR r13 r12
+STR r13 r0
+ADI r11 0
+BNC Z .tick
+LDI r11 0
+JMP .draw
+.draw ADD r0 r14 r1
+ADI r1 7
+LDI r3 64
+.drawloop LOD r1 r2
+ADI r1 181
+STR r1 r2
+ADI r1 74
+SUB r3 r1 r0
+BNC NZ .drawloop
+.checkinput LOD r15 r1
+LDI r2 0b10000000
+AND r1 r2 r0
+BNC NZ .redpressed
+RSH r2 r2
+AND r1 r2 r0
+BNC NZ .greenpressed
+RSH r2 r2
+AND r1 r2 r0
+BNC NZ .bluepressed
+RSH r2 r2
+AND r1 r2 r0
+BNC Z .tick
+.enterpressed LOD r12 r1
+LDI r11 1
+ADD r14 r0 r2
+LDI r3 0b10000000
+LDI r4 8
+LDI r5 0b10000000
+.enterloop AND r1 r3 r0
+BNC Z .enterloopend
+LOD r2 r6
+AND r5 r6 r0
+BNC NZ .enterloopend
+XOR r5 r6 r6
+STR r2 r6
+.enterloopend ADI r4 255
+BNC Z .clearinput
+RSH r3 r3
+ADI r2 1
+JMP .enterloop
+.greenpressed LDI r1 0b00000001 //pause
+XOR r10 r1 r10
+JMP .clearinput
+.redpressed LDI r1 8
+LDI r11 1
+ADD r14 r0 r2
+.redloop STR r2 r0 // clear
+ADI r1 255
+BNC Z .clearinput
+ADI r2 1
+JMP .redloop
+.bluepressed STR r13 r12 // step
+STR r13 r0
+JMP .skiptickcheck

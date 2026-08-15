@@ -1,0 +1,128 @@
+LDI r15 245 // flags memory
+LDI r14 0b00000111 // 8 mask
+LDI r13 0b11100000 // input mask
+LDI r9 191 // buttons memory
+LDI r6 128 // if carry, wall hit
+LDI r7 192 // if not carry, wall hit
+LDI r1 0   // has to start at 0 to prevent extra apples ]
+LDI r2 128 // unfortunately does mean it takes 2x as    ]
+.initclearloop STR r1 r0          // long to initialise ]
+ADI r1 1
+ADI r2 255
+BNC NZ .initclearloop
+LDI r10 90 // snake head mem
+STR r10 r10
+LDI r11 82 // snake tail mem
+STR r11 r10
+LDI r12 8 // snake head dir
+LDI r8 255 // right snake head dir
+LDI r1 0b00110000
+STR r0 r1 2
+CAL .placeapple
+.drawwholescreen LDI r1 7
+.drawholescreenloop LOD r1 r3
+ADD r1 r15 r2
+STR r2 r3 1
+ADI r1 255
+NOR r0 r1 r0
+BNC NZ .drawholescreenloop
+.getinput LOD r9 r1
+AND r13 r1 r0
+BNC Z .getinput
+STR r15 r14
+STR r15 r0
+LDI r2 0b00010000
+CAL .inputlsh
+BNC NZ .turnright
+CAL .inputlsh
+BNC NZ .tick
+.turnleft SUB r0 r12 r12
+SUB r0 r8 r8
+.turnright ADD r0 r12 r1
+ADD r0 r8 r12
+SUB r0 r1 r8
+.tick LDI r1 1
+AND r1 r12 r0
+BNC Z .ignorehorizontalwalls
+AND r10 r14 r2
+AND r13 r12 r0
+BNC Z .checkrightcollision
+.checkleftcollision ADI r2 0
+BNC Z .gameover
+JMP .ignorehorizontalwalls
+.checkrightcollision SUB r14 r2 r0
+BNC Z .gameover
+.ignorehorizontalwalls ADD r10 r12 r1
+STR r10 r1
+ADD r1 r0 r10
+ADD r10 r6 r0
+BNC C .gameover
+ADD r10 r7 r0
+BNC NC .gameover
+LOD r10 r2
+ADI r2 0
+BNC Z .openmove
+SUB r10 r11 r0
+BNC NZ .gameover
+LOD r10 r11
+STR r10 r10
+JMP .drawwholescreen
+.placeapplecycle ADI r2 1
+ADI r4 255
+BNC Z .win
+.placeapplecycledoorway AND r2 r14 r2
+LOD r2 r3
+NOR r3 r0 r0
+BNC Z .placeapplecycle
+.ret RET
+.placeapple LDI r1 159 // randomiser
+LOD r1 r2
+LDI r4 9
+CAL .placeapplecycledoorway
+LOD r1 r1
+LDI r4 0b10000000
+.placeappleverloop ADI r1 1
+AND r1 r14 r1
+BNC Z .placeapplesift
+RSH r4 r4
+JMP .placeappleverloop
+.placeapplesift AND r3 r4 r5
+BNC Z .placeapplehere
+ADD r4 r4 r4
+BNC NZ .placeapplesift
+LDI r4 0b00000001
+JMP .placeapplesift
+.placeapplehere XOR r3 r4 r3
+STR r2 r3
+RET
+.inputlsh ADD r2 r2 r2
+AND r1 r2 r3
+RET
+.dissectr1 AND r14 r1 r2
+LDI r3 0b10000000
+LDI r4 0b00001000
+LDI r5 0b00111000
+.dissectr1loop AND r5 r1 r0
+BNC Z .ret
+RSH r3 r3
+SUB r1 r4 r1
+JMP .dissectr1loop
+.openmove CAL .dissectr1 // r11 not set, r10 set, prev head points to head, all temp avail
+LOD r2 r1
+AND r3 r1 r0
+BNC NZ .hitapple
+XOR r3 r1 r1
+STR r2 r1
+ADD r11 r0 r1
+CAL .dissectr1
+LOD r2 r1
+XOR r3 r1 r1
+STR r2 r1
+LOD r11 r1
+STR r11 r0
+ADD r1 r0 r11
+JMP .drawwholescreen
+.hitapple CAL .placeapple
+JMP .drawwholescreen
+.gameover HLT
+.win HLT

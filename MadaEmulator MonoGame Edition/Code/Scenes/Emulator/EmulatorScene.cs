@@ -146,6 +146,7 @@ namespace MadaEmulator_MonoGame_Edition
             if (_programPath != null)
             {
                 yield return "Change Clock Speed";
+                yield return "Cycle Display";
                 yield return "Toggle Machine Code";
             }
 
@@ -182,6 +183,9 @@ namespace MadaEmulator_MonoGame_Edition
                         valueChangeScene.ResultSelected += RespondToClockSpeedChangeMenu;
                         args.MonoGameInstance.SceneIn(valueChangeScene);
                     }
+                    break;
+                case "Cycle Display":
+                    CycleDisplay();
                     break;
                 case "Toggle Machine Code":
                     _showMachineCode = !_showMachineCode;
@@ -238,6 +242,17 @@ namespace MadaEmulator_MonoGame_Edition
             _hoveringBreakpoint = false;
             _autoRun = false;
             _instructionRuntimeDebt = 0;
+        }
+        public void CycleDisplay()
+        {
+            if (_lowerLeftDisplay == LowerLeftDisplayType.Memory)
+            {
+                _lowerLeftDisplay = Enum.GetValues<LowerLeftDisplayType>().Last();
+            }
+            else
+            {
+                _lowerLeftDisplay--;
+            }
         }
 
         public void RespondToFileExplorer(object sender, FileExplorerScene.FileExplorerResultEventArgs args)
@@ -318,14 +333,7 @@ namespace MadaEmulator_MonoGame_Edition
                 }
                 if (mgi.ControlWasJustPressed("cycle lower left display"))
                 {
-                    if (_lowerLeftDisplay == LowerLeftDisplayType.Memory)
-                    {
-                        _lowerLeftDisplay = Enum.GetValues<LowerLeftDisplayType>().Last();
-                    }
-                    else
-                    {
-                        _lowerLeftDisplay--;
-                    }
+                    CycleDisplay();
                 }
                 if (mgi.ControlWasJustPressed("run/pause program") && !_emulator.IsHalted)
                 {

@@ -1,0 +1,106 @@
+.init LDI r1 248 // space 1
+STR r1 r0
+LDI r1 251       // space 2
+STR r1 r0
+LDI r1 245       // controller/screen flags
+STR r1 r0
+LDI r14 64       // memory index
+LDI r15 246      // screen index
+.load ADD r14 r0 r3
+.load0 LDI r1 0b11111111
+LDI r2 0b11111111
+CAL .commitloadtomemory
+.load1 LDI r1 0b01000000
+LDI r2 0b11111111
+CAL .commitloadtomemory
+.load2 LDI r1 0b10011111
+LDI r2 0b11110001
+CAL .commitloadtomemory
+.load3 LDI r1 0b10010001
+LDI r2 0b11111111
+CAL .commitloadtomemory
+.load4 LDI r1 0b00111000
+LDI r2 0b11111111
+CAL .commitloadtomemory
+.load5 LDI r1 0b11110001
+LDI r2 0b10011110
+CAL .commitloadtomemory
+.load6 LDI r1 0b01111111
+LDI r2 0b10001111
+CAL .commitloadtomemory
+.load7 LDI r1 0b10001111
+LDI r2 0b11110000
+CAL .commitloadtomemory
+.load8 LDI r1 0b11101111
+LDI r2 0b11110111
+CAL .commitloadtomemory
+.load9 LDI r1 0b11110001
+LDI r2 0b11111110
+CAL .commitloadtomemory
+.reset LDI r10 0
+.tick ADD r10 r0 r7
+LDI r8 100
+LDI r12 0
+CAL .dodigit
+LDI r8 10
+CAL .dodigit
+ADD r7 r0 r13
+CAL .drawdigit
+.getinput LDI r1 191
+LDI r2 0b11110000
+.getinputloop LOD r1 r4
+AND r4 r2 r4
+BNC Z .getinputloop
+LDI r1 245
+LDI r2 0b11111111
+STR r1 r2
+LOD r2 r5
+STR r1 r0
+LDI r1 0b10000000
+AND r1 r4 r0
+BNC NZ .redpressed
+LDI r1 0b00100000
+AND r1 r4 r0
+BNC NZ .bluepressed
+LDI r1 0b00010000
+AND r1 r4 r0
+BNC NZ .enterpressed
+JMP .getinput
+.redpressed LDI r6 0
+JMP .getinput
+.bluepressed LDI r6 1
+JMP .getinput
+.enterpressed ADD r6 r0 r0
+BNC Z .dosubtract
+.doadd ADD r10 r5 r10
+JMP .tick
+.dosubtract SUB r10 r5 r10
+JMP .tick
+.commitloadtomemory STR r3 r1
+STR r3 r2 1
+ADI r3 2
+.return RET
+.drawdigit ADD r13 r0 r11
+ADD r11 r11 r11
+ADD r11 r14 r11
+LOD r11 r1
+ADI r11 1
+LOD r11 r2
+ADD r15 r0 r11
+ADD r11 r12 r11
+ADD r11 r12 r11
+ADD r11 r12 r11
+STR r11 r1
+STR r11 r2 1
+RET
+.finddigitvalue LDI r13 0
+.fdvloop SUB r7 r8 r7
+BNC NC .fdvfound
+ADI r13 1
+JMP .fdvloop
+.fdvfound ADD r7 r8 r7
+RET
+.dodigit CAL .finddigitvalue
+CAL .drawdigit
+ADI r12 1
+RET

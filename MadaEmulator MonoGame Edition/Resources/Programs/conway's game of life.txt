@@ -1,0 +1,94 @@
+LDI r15 0b11110101 // flags location
+LDI r14 0b11111111 // byte location / minus one
+LDI r13 0b10111111 // buttons
+LDI r12 0b00010000 // enter mask
+LDI r11 0b01000000 // memory location
+LDI r10 0b01010000 // alt memory location
+LDI r9 0b00000001  // one
+LDI r2 8
+LDI r5 159 // short term: rng loc
+LDI r6 0b01000000 // short term: green mask
+.initloop ADD r15 r2 r3
+STR r3 r14
+LOD r13 r1
+AND r12 r1 r0
+BNC NZ .initenter
+AND r6 r1 r0
+BNC Z .initloop
+.initgreen LOD r5 r1
+JMP .initprint
+.initenter LOD r14 r1
+.initprint STR r15 r14
+STR r3 r1
+STR r15 r0
+ADD r11 r2 r3
+STR r3 r1
+ADI r2 255
+BNC NZ .initloop
+.waitforenter LDI r14 0b00000011 // NOW is button ack
+.waitforenterloop LOD r13 r1
+AND r12 r1 r0
+BNC Z .waitforenterloop
+LDI r14 0b11111111 // NOW is 255
+STR r15 r14
+STR r15 r0
+.tick LOD r11 r9 r1
+STR r11 r1 9
+LDI r8 8
+LOD r11 r8 r1
+STR r11 r1
+LDI r4 8
+.tickx ADD r4 r11 r3
+LOD r3 r14 r1
+LOD r3 r2
+LOD r3 r9 r3
+LDI r6 0b10000000 // y position
+LDI r7 0b00000000 // new values
+.ticky LDI r5 3 // adjacencyleft
+ADD r6 r0 r8
+CAL .countlayer
+ADD r6 r6 r8
+BNC NZ .notr8overflow
+LDI r8 0b00000001
+.notr8overflow CAL .countlayer
+RSH r6 r8
+ADI r8 0
+BNC NZ .notr8underflow
+LDI r8 0b10000000
+.notr8underflow CAL .countlayer
+ADI r5 0
+BNC Z .oninnext
+AND r6 r2 r0
+BNC Z .offinnext
+ADI r5 1
+BNC Z .oninnext
+.offinnext RSH r6 r6
+ADI r6 0
+BNC NZ .ticky
+.tickyover ADD r10 r4 r5
+STR r5 r7
+ADI r4 255
+ADI r4 0
+BNC NZ .tickx
+.ticksdone ADD r11 r0 r1
+ADD r10 r0 r11
+ADD r1 r0 r10
+.draw LDI r2 8
+.drawloop LOD r2 r11 r1
+ADD r15 r2 r3
+STR r3 r1
+ADI r2 255
+BNC Z .waitforenter
+JMP .drawloop
+.oninnext XOR r6 r7 r7
+JMP .offinnext
+.countlayer AND r1 r8 r0
+BNC Z .skip1
+ADI r5 255
+.skip1 AND r2 r8 r0
+BNC Z .skip2
+ADI r5 255
+.skip2 AND r3 r8 r0
+BNC Z .ret
+ADI r5 255
+.ret RET
