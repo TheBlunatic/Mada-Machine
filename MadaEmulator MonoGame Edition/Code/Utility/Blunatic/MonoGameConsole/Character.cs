@@ -577,6 +577,7 @@ namespace Blunatic.Mgc
         }
 
         private static Dictionary<char, byte> _charToByte;
+        public static char[] _byteToChar;
 
         private static Dictionary<byte, byte> _twoStageQuarterRotations;
         private static Dictionary<byte, byte> _horizontalFlips;
@@ -932,6 +933,12 @@ namespace Blunatic.Mgc
                 {'¯', Overscore},
             };
 
+            _byteToChar = new char[256];
+            foreach (KeyValuePair<char, byte> kvp in _charToByte)
+            {
+                _byteToChar[kvp.Value] = kvp.Key;
+            }
+
             _twoStageQuarterRotations = new Dictionary<byte, byte>();
             _addTwoStage(_twoStageQuarterRotations, BackSlash, Slash);
             _addTwoStage(_twoStageQuarterRotations, ArrowLeftRight, ArrowUpDown);
@@ -989,6 +996,7 @@ namespace Blunatic.Mgc
             }
             return QuestionMarkInverted;
         }
+        public static char AsChar(byte glyph) => _byteToChar[glyph];
         public static Rectangle GetRectangle(byte glyph)
         {
             return GetRectangle(glyph, 1);
