@@ -5,6 +5,9 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Blunatic.Core;
+using Blunatic.Mgc;
+using Microsoft.Xna.Framework;
 
 namespace MadaEmulator_MonoGame_Edition
 {
@@ -35,16 +38,88 @@ namespace MadaEmulator_MonoGame_Edition
             .Union(MEMORY_OUT_SCREEN)
             .ToHashSet();
 
+        public static Dictionary<Token, string> PROGRAM_TOKEN_FORMAT_HEADERS = new Dictionary<Token, string>()
+        {
+            { Token.Value8, Fm.Fg(Color.White) },
+            { Token.Value7, Fm.Fg(Color.DarkGray) },
+            { Token.Value4, Fm.Fg(Color.White) },
+            { Token.Opcode, Fm.Fg(Color.Yellow) },
+            { Token.Label, Fm.Fg(Color.DarkGray) },
+            { Token.Condition, Fm.Fg(Color.Orange) },
+            { Token.Register, Fm.Fg(Color.LightBlue) },
+        };
+
+        // Structs
+        public struct ProgramToken
+        {
+            public string InternalString { get; set; }
+            public string DisplayString { get; set; }
+            public Token Token { get; set; }
+
+            public ProgramToken(Token token, string internalString, string displayString)
+            {
+                InternalString = internalString;
+                Token = token;
+                DisplayString = displayString;
+            }
+
+            public override string ToString()
+            {
+                return DisplayString;
+            }
+            public string GetFormattedString(MonoGameInstance mgi)
+            {
+                if (!PROGRAM_TOKEN_FORMAT_HEADERS.TryGetValue(Token, out string header))
+                {
+                    header = $"{Fm.Fg(Color.White)}";
+                }
+                return $"{header}{DisplayString}";
+            }
+        }
+
         // Classes
         public class ProgramLine
         {
             public Opcode Opcode {  get; set; }
             public byte[] Operands { get; set; }
+            public ProgramToken[] Tokens { get; set; }
+            public int[] PrecedingWhitespace { get; set; }
+            public string Comment { get; set; }
 
-            public ProgramLine(Opcode opcode, string[] operands)
+            public ProgramLine(Opcode opcode, string[] operands, ProgramToken[] tokens, int[] precedingWhitespace, string comment = null)
             {
                 Opcode = opcode;
                 Operands = operands.Select((i) => { return byte.Parse(i); }).ToArray();
+                Tokens = tokens;
+                Comment = comment;
+                PrecedingWhitespace = precedingWhitespace;
+            }
+
+            public override string ToString()
+            {
+                IEnumerator<int> whitespaceEnumerator = PrecedingWhitespace.AsEnumerable().GetEnumerator();
+                string getNextWhitespace()
+                {
+                    whitespaceEnumerator.MoveNext();
+                    return new string(' ', whitespaceEnumerator.Current);
+                }
+                return Tokens.Aggregate(string.Empty, (i, x) => 
+                {
+                    return $"{i}{getNextWhitespace()}{x}";
+                }) + (Comment == null ? string.Empty : $"{getNextWhitespace()}{Comment}");
+            }
+            public string ToFormattedString(MonoGameInstance mgi)
+            {
+                IEnumerator<int> whitespaceEnumerator = PrecedingWhitespace.AsEnumerable().GetEnumerator();
+                string getNextWhitespace()
+                {
+                    whitespaceEnumerator.MoveNext();
+                    return new string(' ', whitespaceEnumerator.Current);
+                }
+                return Tokens.Aggregate(string.Empty, (i, x) =>
+                {
+                    return $"{i}{getNextWhitespace()}{x.GetFormattedString(mgi)}";
+                }) + (Comment == null ? string.Empty : $"{getNextWhitespace()}{Fm.Fg(Color.DarkGreen)}{Comment}");
             }
         }
         public class RunImage
@@ -154,7 +229,6 @@ namespace MadaEmulator_MonoGame_Edition
         public Controller Controller;
         public Screen Screen;
 
-        public List<string> ProgramText { get; private set; }
         public List<ProgramLine> Program { get; private set; }
         public List<string> ProgramBinary { get; private set; }
 
@@ -461,11 +535,102 @@ namespace MadaEmulator_MonoGame_Edition
             }
             throw new Exception("Failed to generate machine code.");
         }
+        public Token[][] GetExpectedMatchesForOpcode(Opcode opcode)
+        {
+            return opcode switch
+            {
+                Opcode.NOP or Opcode.HLT or Opcode.RET => 
+                [
+                    [
+                    ],
+                ],
+                Opcode.ADD or Opcode.SUB or Opcode.NOR or Opcode.AND or Opcode.XOR => 
+                [
+                    [
+                        Token.Register,
+                        Token.Register,
+                        Token.Register,
+                    ],
+                ],
+                Opcode.STR => 
+                [
+                    [
+                        Token.Register,
+                        Token.Register,
+                    ],
+                    [
+                        Token.Register,
+                        Token.Register,
+                        Token.Value4,
+                    ],
+                ],
+                Opcode.LOD or Opcode.RSH => 
+                [
+                    [
+                        Token.Register,
+                        Token.Register,
+                    ],
+                    [
+                        Token.Register,
+                        Token.Register,
+                        Token.Register,
+                    ],
+                ],
+                Opcode.LDI or Opcode.ADI => 
+                [
+                    [
+                        Token.Register,
+                        Token.Value8,
+                    ],
+                ],
+                Opcode.BNC => 
+                [
+                    [
+                        Token.Condition,
+                        Token.Value7,
+                    ],
+                ],
+                Opcode.JMP or Opcode.CAL => 
+                [
+                    [
+                        Token.Value7,
+                    ],
+                ],
+                _ => throw new NotImplementedException(),
+            };
+        }
+        public Token[] GetPossibleParsesForToken(Token token)
+        {
+            return token switch
+            {
+                Token.Value7 =>
+                [
+                    Token.Value7,
+                    Token.Value8,
+                ],
+                Token.Value4 =>
+                [
+                    Token.Value4,
+                    Token.Value7,
+                    Token.Value8,
+                ],
+                _ =>
+                [
+                    token
+                ]
+            };
+        }
+        public bool CanFirstTokenBeParsedAsOther(Token canThis, Token beParsedAsThis)
+        {
+            return GetPossibleParsesForToken(canThis).Contains(beParsedAsThis);
+        }
         public void LoadProgram(string programPath)
         {
             List<string> programText = File.ReadAllLines(programPath).ToList();
             List<ProgramLine> program = new List<ProgramLine>();
             List<string> programBinary = new List<string>();
+            string[] programComments = new string[128];
+            int[][] precedingWhitespace = new int[128][];
 
             Dictionary<string, byte> labels = new Dictionary<string, byte>();
 
@@ -476,20 +641,40 @@ namespace MadaEmulator_MonoGame_Edition
 
             for (int lineIndex = 0; lineIndex < programText.Count; lineIndex++)
             {
+                List<int> whitespaceList = new List<int>();
+                int runLength = 0;
+                bool counting = true;
+                for (int i = 0; i < programText[lineIndex].Length && programText[lineIndex][i] != '/'; i++)
+                {
+                    if (programText[lineIndex][i] == ' ')
+                    {
+                        runLength++;
+                        counting = true;
+                    }
+                    else if (counting)
+                    {
+                        whitespaceList.Add(runLength);
+                        runLength = 0;
+                        counting = false;
+                    }
+                }
+                whitespaceList.Add(runLength);
+                precedingWhitespace[lineIndex] = whitespaceList.ToArray();
                 programText[lineIndex] = programText[lineIndex].Trim(' ');
             }
 
-            (Token, string)[][] programTokens = new (Token, string)[programText.Count][];
+            ProgramToken[][] programTokens = new ProgramToken[programText.Count][];
 
             // Divide and categorise tokens
             for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
             {
-                List<(Token, string)> list = new List<(Token, string)>();
+                List<ProgramToken> list = new List<ProgramToken>();
                 string line = programText[lineIndex];
                 {
                     int index = Array.IndexOf(line.ToCharArray(), '/');
                     if (index != -1)
                     {
+                        programComments[lineIndex] = line.Substring(index);
                         line = line.Substring(0, index);
                     }
                 }
@@ -498,13 +683,13 @@ namespace MadaEmulator_MonoGame_Edition
                 {
                     if (token[0] == '.')
                     {
-                        list.Add((Token.Label, token));
+                        list.Add(new ProgramToken(Token.Label, token, token));
                         continue;
                     }
 
                     if (token.ToUpper() != token.ToLower() && Enum.TryParse<Opcode>(token, out Opcode opcodeResult))
                     {
-                        list.Add((Token.Opcode, token));
+                        list.Add(new ProgramToken(Token.Opcode, token, token));
                         continue;
                     }
 
@@ -512,7 +697,7 @@ namespace MadaEmulator_MonoGame_Edition
                     {
                         if (int.TryParse($"{token.Substring(1)}", out int resultInt) && resultInt >= 0 && resultInt < 16)
                         {
-                            list.Add((Token.Register, token.Substring(1)));
+                            list.Add(new ProgramToken(Token.Register, token.Substring(1), token));
                             continue;
                         }
                         throw new FormatException($"Line {lineIndex}: Token '{token}' was not in a valid format for a register.");
@@ -540,22 +725,22 @@ namespace MadaEmulator_MonoGame_Edition
                         }
                         if (baseTenToken < 0b00010000)
                         {
-                            list.Add((Token.Value4, $"{baseTenToken}"));
+                            list.Add(new ProgramToken(Token.Value4, $"{baseTenToken}", token));
                         }
                         else if (baseTenToken < 0b10000000)
                         {
-                            list.Add((Token.Value7, $"{baseTenToken}"));
+                            list.Add(new ProgramToken(Token.Value7, $"{baseTenToken}", token));
                         }
                         else
                         {
-                            list.Add((Token.Value8, $"{baseTenToken}"));
+                            list.Add(new ProgramToken(Token.Value8, $"{baseTenToken}", token));
                         }
                         continue;
                     }
 
                     if (token.ToUpper() != token.ToLower() && Enum.TryParse<Condition>(token, out Condition conditionResult))
                     {
-                        list.Add((Token.Condition, $"{(byte)conditionResult}"));
+                        list.Add(new ProgramToken(Token.Condition, $"{(byte)conditionResult}", token));
                         continue;
                     }
 
@@ -563,15 +748,15 @@ namespace MadaEmulator_MonoGame_Edition
                     {
                         if (byteResult < 0b00010000)
                         {
-                            list.Add((Token.Value4, token));
+                            list.Add(new ProgramToken(Token.Value4, token, token));
                         }
                         else if (byteResult < 0b10000000)
                         {
-                            list.Add((Token.Value7, token));
+                            list.Add(new ProgramToken(Token.Value7, token, token));
                         }
                         else
                         {
-                            list.Add((Token.Value8, token));
+                            list.Add(new ProgramToken(Token.Value8, token, token));
                         }
                         continue;
                     }
@@ -584,17 +769,17 @@ namespace MadaEmulator_MonoGame_Edition
             // Register and remove label headers
             for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
             {
-                (Token, string)[] lineTokens = programTokens[lineIndex];
+                ProgramToken[] lineTokens = programTokens[lineIndex];
                 int labelCount = 0;
                 for (int i = 0; i < lineTokens.Length; i++)
                 {
-                    if (lineTokens[i].Item1 == Token.Label)
+                    if (lineTokens[i].Token == Token.Label)
                     {
-                        if (labels.ContainsKey(lineTokens[i].Item2))
+                        if (labels.ContainsKey(lineTokens[i].InternalString))
                         {
-                            throw new FormatException($"Line {lineIndex}: The label '{lineTokens[i].Item2}' has already been defined at line {labels[lineTokens[i].Item2]}.");
+                            throw new FormatException($"Line {lineIndex}: The label '{lineTokens[i].InternalString}' has already been defined at line {labels[lineTokens[i].InternalString]}.");
                         }
-                        labels.Add(lineTokens[i].Item2, lineIndex);
+                        labels.Add(lineTokens[i].InternalString, lineIndex);
                         labelCount++;
                     }
                     else
@@ -603,28 +788,17 @@ namespace MadaEmulator_MonoGame_Edition
                     }
                 }
 
-                if (labelCount > 0)
-                {
-                    (Token, string)[] newLineTokens = new (Token, string)[lineTokens.Length - labelCount];
-                    for (int i = labelCount; i < lineTokens.Length; i++)
-                    {
-                        newLineTokens[i - labelCount] = lineTokens[i];
-                    }
-                    programTokens[lineIndex] = newLineTokens;
-                    lineTokens = newLineTokens;
-                }
-
-                if (lineTokens.Length == 0)
+                if (lineTokens.Length == labelCount)
                 {
                     throw new FormatException($"Line {lineIndex}: Empty lines are not supported.");
                 }
 
-                if (lineTokens[0].Item1 != Token.Opcode || lineTokens.Where((x) => { return x.Item1 == Token.Opcode; }).ToArray().Length != 1)
+                if (lineTokens[labelCount].Token != Token.Opcode || lineTokens.Where((x) => { return x.Token == Token.Opcode; }).ToArray().Length != 1)
                 {
                     throw new FormatException($"Line {lineIndex}: Line must have a singular leading opcode.");
                 }
 
-                if (lineTokens.Length > 4)
+                if (lineTokens.Length > 4 + labelCount)
                 {
                     throw new FormatException($"Line {lineIndex}: Line cannot have more than three operands.");
                 }
@@ -633,20 +807,26 @@ namespace MadaEmulator_MonoGame_Edition
             // Replace label pointers with line values
             for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
             {
-                (Token, string)[] lineTokens = programTokens[lineIndex];
+                ProgramToken[] lineTokens = programTokens[lineIndex];
+                bool hitOpcode = false;
                 for (int i = 0; i < lineTokens.Length; i++)
                 {
-                    if (lineTokens[i].Item1 == Token.Label)
+                    if (lineTokens[i].Token == Token.Opcode)
+                    {
+                        hitOpcode = true;
+                    }
+                    if (!hitOpcode) continue;
+                    if (lineTokens[i].Token == Token.Label)
                     {
                         try
                         {
-                            lineTokens[i].Item2 = $"{labels[lineTokens[i].Item2]}";
+                            lineTokens[i].InternalString = $"{labels[lineTokens[i].InternalString]}";
                         }
                         catch (KeyNotFoundException)
                         {
-                            throw new FormatException($"Line {lineIndex}: Label '{lineTokens[i].Item2}' doesn't point anywhere.");
+                            throw new FormatException($"Line {lineIndex}: Label '{lineTokens[i].InternalString}' doesn't point anywhere.");
                         }
-                        lineTokens[i].Item1 = Token.Value7;
+                        lineTokens[i].Token = Token.Value7;
                     }
                 }
             }
@@ -654,136 +834,35 @@ namespace MadaEmulator_MonoGame_Edition
             // Form ProgramLines
             for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
             {
-                (Token, string)[] lineTokens = programTokens[lineIndex];
+                ProgramToken[] lineTokens = programTokens[lineIndex];
 
-                Opcode opcode = (Opcode)Enum.Parse(typeof(Opcode), lineTokens[0].Item2);
+                ProgramToken opcodeToken = lineTokens.Where((x) => x.Token == Token.Opcode).First();
+                int opcodeIndex = Array.IndexOf(lineTokens, opcodeToken);
+                Opcode opcode = (Opcode)Enum.Parse(typeof(Opcode), opcodeToken.InternalString);
 
-                Token[][] expectedMatches;
-
-                switch (opcode)
-                {
-                    case Opcode.NOP:
-                    case Opcode.HLT:
-                    case Opcode.RET:
-                        expectedMatches = new Token[][]
-                        {
-                            new Token[]
-                            {
-
-                            },
-                        };
-                        break;
-                    case Opcode.ADD:
-                    case Opcode.SUB:
-                    case Opcode.NOR:
-                    case Opcode.AND:
-                    case Opcode.XOR:
-                        expectedMatches = new Token[][]
-                        {
-                            new Token[]
-                            {
-                                Token.Register,
-                                Token.Register,
-                                Token.Register,
-                            },
-                        };
-                        break;
-                    case Opcode.STR:
-                        expectedMatches = new Token[][]
-                        {
-                            new Token[]
-                            {
-                                Token.Register,
-                                Token.Register,
-                            },
-                            new Token[]
-                            {
-                                Token.Register,
-                                Token.Register,
-                                Token.Value4,
-                            },
-                        };
-                        break;
-                    case Opcode.LOD:
-                    case Opcode.RSH:
-                        expectedMatches = new Token[][]
-                        {
-                            new Token[]
-                            {
-                                Token.Register,
-                                Token.Register,
-                            },
-                            new Token[]
-                            {
-                                Token.Register,
-                                Token.Register,
-                                Token.Register,
-                            },
-                        };
-                        break;
-                    case Opcode.LDI:
-                    case Opcode.ADI:
-                        expectedMatches = new Token[][]
-                        {
-                            new Token[]
-                            {
-                                Token.Register,
-                                Token.Value8,
-                            },
-                        };
-                        break;
-                    case Opcode.BNC:
-                        expectedMatches = new Token[][]
-                        {
-                            new Token[]
-                            {
-                                Token.Condition,
-                                Token.Value7,
-                            },
-                        };
-                        break;
-                    case Opcode.JMP:
-                    case Opcode.CAL:
-                        expectedMatches = new Token[][]
-                        {
-                            new Token[]
-                            {
-                                Token.Value7,
-                            },
-                        };
-                        break;
-                    default:
-                        throw new NotImplementedException();
-
-                }
+                Token[][] expectedMatches = GetExpectedMatchesForOpcode(opcode);
 
                 bool success = false;
                 List<string> values = new List<string>();
                 foreach (Token[] match in expectedMatches)
                 {
-                    values.Clear();
-                    if (match.Length != lineTokens.Length - 1)
+                    if (match.Length != lineTokens.Length - opcodeIndex - 1)
                     {
                         continue;
                     }
+                    values.Clear();
                     success = true;
-                    for (int i = 0; i < match.Length; i++)
+                    int positionInLine = opcodeIndex + 1;
+                    for (int i = 0; i < match.Length;)
                     {
-                        if (match[i] != lineTokens[i + 1].Item1)
+                        if (match[i] != lineTokens[positionInLine].Token && !CanFirstTokenBeParsedAsOther(lineTokens[positionInLine].Token, match[i]))
                         {
-                            if 
-                            (!(
-                                match[i] == Token.Value7 && lineTokens[i + 1].Item1 == Token.Value4 ||
-                                match[i] == Token.Value8 && lineTokens[i + 1].Item1 == Token.Value7 ||
-                                match[i] == Token.Value8 && lineTokens[i + 1].Item1 == Token.Value4
-                            ))
-                            {
-
-                                success = false;
-                                break;
-                            }
+                            success = false;
+                            break;
                         }
-                        values.Add(lineTokens[i + 1].Item2);
+                        values.Add(lineTokens[positionInLine].InternalString);
+                        i++;
+                        positionInLine++;
                     }
                     if (success)
                     {
@@ -795,7 +874,7 @@ namespace MadaEmulator_MonoGame_Edition
                     throw new FormatException($"Line {lineIndex}: Opcode '{opcode}' cannot accept these operands.");
                 }
 
-                program.Add(new ProgramLine(opcode, values.ToArray()));
+                program.Add(new ProgramLine(opcode, values.ToArray(), lineTokens, precedingWhitespace[lineIndex], programComments[lineIndex]));
             }
 
             // Generate Machine Code
@@ -806,7 +885,6 @@ namespace MadaEmulator_MonoGame_Edition
 
             Program = program;
             ProgramBinary = programBinary;
-            ProgramText = programText;
         }
 
         public void IncrementProgramCounter()
@@ -823,8 +901,7 @@ namespace MadaEmulator_MonoGame_Edition
 
             while (ProgramCounter >= Program.Count)
             {
-                Program.Add(new ProgramLine(Opcode.NOP, new string[] { "0000", "0000", "0000" }));
-                ProgramText.Add("NOP");
+                Program.Add(new ProgramLine(Opcode.NOP, [], [new ProgramToken(Token.Opcode, "NOP", "NOP")], [0, 1], "// ! AUTOGENERATED !"));
                 ProgramBinary.Add("0000 0000 0000 0000");
             }
 

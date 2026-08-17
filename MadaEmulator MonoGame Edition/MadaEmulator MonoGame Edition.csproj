@@ -45,6 +45,9 @@
     <None Update="Resources\Programs\langston%27s ant.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Resources\Programs\outofboundstest.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Resources\Programs\popcount.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

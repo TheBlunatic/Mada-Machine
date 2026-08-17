@@ -459,21 +459,21 @@ namespace MadaEmulator_MonoGame_Edition
                 if (_programRegion.IsHovered)
                 {
                     int scrollThisTick = mgi.CursorState.GetCursorScrollThisTick();
-                    if (scrollThisTick != 0 && _emulator.ProgramText.Count > _programRegion.Dimensions.Y)
+                    if (scrollThisTick != 0 && _emulator.Program.Count > _programRegion.Dimensions.Y)
                     {
                         _programOffset -= Math.Sign(scrollThisTick);
                         if (_programOffset < 0)
                         {
                             _programOffset = 0;
                         }
-                        else if (_programOffset > _emulator.ProgramText.Count - _programRegion.Dimensions.Y)
+                        else if (_programOffset > _emulator.Program.Count - _programRegion.Dimensions.Y)
                         {
-                            _programOffset = _emulator.ProgramText.Count - _programRegion.Dimensions.Y;
+                            _programOffset = _emulator.Program.Count - _programRegion.Dimensions.Y;
                         }
                     }
                     Vec relativeCursorPosition = _programRegion.GetRelativePositionOfScreenPosition(hoveredCell);
                     int hoveredIndex = relativeCursorPosition.Y + _programOffset;
-                    if (hoveredIndex < _emulator.ProgramText.Count && hoveredIndex >= 0)
+                    if (hoveredIndex < _emulator.Program.Count && hoveredIndex >= 0)
                     {
                         _hoveredLine = hoveredIndex;
                         if (relativeCursorPosition.X == 0)
@@ -653,9 +653,35 @@ namespace MadaEmulator_MonoGame_Edition
             }
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, 2), $"Loaded: {Fm.Fg(Color.DarkGray)}{_programName}", _programRegion.Dimensions.X, MonoGameConsole.WrapType.Cut);
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, 4), $"Program: {(_autoRun ? $"{Fm.Fg(Color.Yellow)}RUNNING at {_instructionsPerSecond}Hz {Fm.Fg(new Color(80, 80, 80))}({(_instructionRuntimeDebt*100):0.00}%)" : (_emulator.IsHalted ? $"{Fm.Fg(Color.Green)}Halted" : string.Empty))}");
-            for (i = _programOffset; i < _emulator.ProgramText.Count && i + PROGRAM_DRAW_VERTICAL_OFFSET - _programOffset < _canvasRegion.Dimensions.Y; i++)
+            for (i = _programOffset; i < _emulator.Program.Count && i + PROGRAM_DRAW_VERTICAL_OFFSET - _programOffset < _canvasRegion.Dimensions.Y; i++)
             {
-                _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, i + PROGRAM_DRAW_VERTICAL_OFFSET - _programOffset), $"{(_hoveringBreakpoint && _hoveredLine == i ? $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}{Ch.AsChar(Ch.Circle)}" : $"{Fm.Fg(Color.DarkRed)}{Ch.AsChar(Ch.Circle)}")}" : $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}{Ch.AsChar(Ch.Circle)}" : $" ")}")}{Fm.Fg(new Color(60, 60, 60))}{$"{i}".PadLeft(3, ' ')}{(_emulator.ProgramCounter == i ? $"{(_emulator.IsHalted ? Fm.Fg(Color.Green) : (_breakpoints[i] ? Fm.Fg(Color.OrangeRed) : Fm.Fg(Color.Yellow)))} " : $"{Fm.Fg(Color.White)} ")}{(i == _hoveredLine ? Fm.Bg(new Color(60, 60, 60)) : string.Empty)}{(_showMachineCode ? _emulator.ProgramBinary[i] : _emulator.ProgramText[i])}{new string(' ', _programRegion.Dimensions.X)}", _programRegion.Dimensions.X - 4, MonoGameConsole.WrapType.Cut);
+                Color backgroundColorForLine;
+
+                if (_emulator.ProgramCounter == i)
+                {
+                    if (_emulator.IsHalted)
+                    {
+                        backgroundColorForLine = new Color(0, 41, 0);
+                    }
+                    else if (_breakpoints[i])
+                    {
+                        backgroundColorForLine = new Color(62, 0, 0);
+                    }
+                    else
+                    {
+                        backgroundColorForLine = new Color(41, 41, 0);
+                    }
+                }
+                else if (_hoveredLine == i)
+                {
+                    backgroundColorForLine = new Color(38, 38, 38);
+                }
+                else
+                {
+                    backgroundColorForLine = Color.Black;
+                }
+
+                _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, i + PROGRAM_DRAW_VERTICAL_OFFSET - _programOffset), $"{(_hoveringBreakpoint && _hoveredLine == i ? $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}{Ch.AsChar(Ch.Circle)}" : $"{Fm.Fg(Color.DarkRed)}{Ch.AsChar(Ch.Circle)}")}" : $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}{Ch.AsChar(Ch.Circle)}" : $" ")}")}{Fm.Fg(new Color(60, 60, 60))}{$"{i}".PadLeft(3, ' ')} {Fm.Col(Color.White, backgroundColorForLine)}{(_showMachineCode ? _emulator.ProgramBinary[i] : _emulator.Program[i].ToFormattedString(mgi))}{new string(' ', _programRegion.Dimensions.X)}", _programRegion.Dimensions.X - 4, MonoGameConsole.WrapType.Cut);
             }
         }
         public void Draw(MonoGameInstance mgi)
