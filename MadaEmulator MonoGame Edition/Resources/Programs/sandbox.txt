@@ -6,6 +6,7 @@ STR r14 r15
 LDI r11 0 // clearinput alt
 LDI r12 255 // byteinput
 LDI r13 245 // controller acks
+STR r13 r0
 LDI r14 65 // memory start
 LDI r15 191 // controller input
 LDI r10 0 // play or paused

@@ -3,7 +3,9 @@ LDI r14 0b00000111      // Lower 3 mask
 LDI r7 0b00000001       // Flat mask
 LDI r13 64              // Memory storage
 LDI r12 6               // Memory offset (to wrap)
-LDI r11 246             // Screen storage
+LDI r11 245             // Screen storage
+STR r11 r0
+LDI r11 246
 LDI r10 4               // Current height
 LDI r9 0b00001111       // Current visual
 .newheight LOD r15 r1   // Next height

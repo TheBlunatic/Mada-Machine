@@ -1,4 +1,6 @@
-﻿LDI r15 246         // Screen start position
+﻿LDI r15 245         // Screen start position
+STR r15 r0
+LDI r15 246
 LDI r14 64          // Data start position
 LDI r2 254          // Init upper bound
 LDI r1 255          // Starting world

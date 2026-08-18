@@ -1,13 +1,14 @@
 ﻿using Blunatic.Core;
+using Blunatic.Mathematics;
 using Blunatic.Mgc;
 using Blunatic.Scenes;
+using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.Xna.Framework;
-using Blunatic.Mathematics;
 
 namespace MadaEmulator_MonoGame_Edition
 {
@@ -48,6 +49,12 @@ namespace MadaEmulator_MonoGame_Edition
             Memory,
             Peripherals,
         }
+        private enum LoadedProgramType
+        {
+            None,
+            FromFile,
+            RandomlyGenerated,
+        }
 
         // Properties
         public bool UpdatePreviousScene => false;
@@ -55,6 +62,8 @@ namespace MadaEmulator_MonoGame_Edition
 
         // Fields
         private MonoGameConsole _mgc;
+
+        private LoadedProgramType _loadedProgramType;
 
         private TaskbarButtonEntry[] _topLevelTaskbarButtonEntries;
 
@@ -93,6 +102,8 @@ namespace MadaEmulator_MonoGame_Edition
         public EmulatorScene(MonoGameInstance mgi)
         {
             _mgc = new MonoGameConsole(mgi, new Vec(120, 45));
+
+            _loadedProgramType = LoadedProgramType.None;
 
             _hoveredLine = -1;
             _hoveringBreakpoint = false;
@@ -139,16 +150,18 @@ namespace MadaEmulator_MonoGame_Edition
         {
             yield return "Load";
 
-            if (_programPath != null)
+            if (_loadedProgramType == LoadedProgramType.FromFile)
             {
                 yield return "Reload";
             }
+
+            yield return "Generate Random Program";
 
             yield break;
         }
         public IEnumerable<string> GetConfigButtonDropdownOptions(MonoGameInstance mgi)
         {
-            if (_programPath != null)
+            if (_loadedProgramType != LoadedProgramType.None)
             {
                 yield return "Change Clock Speed";
                 yield return "Cycle Display";
@@ -174,6 +187,11 @@ namespace MadaEmulator_MonoGame_Edition
                 case "Reload":
                     {
                         DoReloadMenu(args.MonoGameInstance);
+                    }
+                    break;
+                case "Generate Random Program":
+                    {
+                        DoGenerateRandomProgramMenu(args.MonoGameInstance);
                     }
                     break;
             }
@@ -206,6 +224,25 @@ namespace MadaEmulator_MonoGame_Edition
             }
         }
 
+        public void DoGenerateRandomProgramMenu(MonoGameInstance mgi)
+        {
+            Random rng = new Random();
+            int seed = rng.Next();
+            try
+            {
+                _programPath = null;
+                _programDirectory = null;
+                _programName = $"RNG{seed}";
+                _emulator = new Emulator(new Random(seed));
+                _loadedProgramType = LoadedProgramType.RandomlyGenerated;
+
+                ResetEmulatorEnvironment();
+            }
+            catch (Exception e)
+            {
+                mgi.SceneIn(new PopupScene(mgi, PopupScene.Type.Error, e.Message));
+            }
+        }
         public void DoLoadMenu(MonoGameInstance mgi)
         {
             FileExplorerScene fileExplorerScene;
@@ -222,6 +259,13 @@ namespace MadaEmulator_MonoGame_Edition
         }
         public void DoReloadMenu(MonoGameInstance mgi)
         {
+            if (_loadedProgramType == LoadedProgramType.None) return;
+            if (_loadedProgramType == LoadedProgramType.RandomlyGenerated)
+            {
+                DoGenerateRandomProgramMenu(mgi);
+                return;
+            }
+
             try
             {
                 LoadProgramFromPath(_programPath);
@@ -237,6 +281,7 @@ namespace MadaEmulator_MonoGame_Edition
             _programDirectory = _programPath.Substring(0, _programPath.Length - _programPath.Split('\\').Last().Length - 1);
             _programName = _programPath.Substring(_programDirectory.Length + 1);
             _emulator = new Emulator(_programPath);
+            _loadedProgramType = LoadedProgramType.FromFile;
 
             ResetEmulatorEnvironment();
         }
@@ -681,7 +726,7 @@ namespace MadaEmulator_MonoGame_Edition
                     backgroundColorForLine = Color.Black;
                 }
 
-                _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, i + PROGRAM_DRAW_VERTICAL_OFFSET - _programOffset), $"{(_hoveringBreakpoint && _hoveredLine == i ? $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}{Ch.AsChar(Ch.Circle)}" : $"{Fm.Fg(Color.DarkRed)}{Ch.AsChar(Ch.Circle)}")}" : $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}{Ch.AsChar(Ch.Circle)}" : $" ")}")}{Fm.Fg(new Color(60, 60, 60))}{$"{i}".PadLeft(3, ' ')} {Fm.Col(Color.White, backgroundColorForLine)}{(_showMachineCode ? _emulator.ProgramBinary[i] : _emulator.Program[i].ToFormattedString(mgi))}{new string(' ', _programRegion.Dimensions.X)}", _programRegion.Dimensions.X - 4, MonoGameConsole.WrapType.Cut);
+                _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, i + PROGRAM_DRAW_VERTICAL_OFFSET - _programOffset), $"{(_hoveringBreakpoint && _hoveredLine == i ? $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}{Ch.AsChar(Ch.Circle)}" : $"{Fm.Fg(Color.DarkRed)}{Ch.AsChar(Ch.Circle)}")}" : $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}{Ch.AsChar(Ch.Circle)}" : $" ")}")}{Fm.Fg(new Color(60, 60, 60))}{$"{i}".PadLeft(3, ' ')} {Fm.Col(Color.White, backgroundColorForLine)}{(_showMachineCode ? _emulator.Program[i].MachineCode : _emulator.Program[i].ToFormattedString(mgi))}{new string(' ', _programRegion.Dimensions.X)}", _programRegion.Dimensions.X - 4, MonoGameConsole.WrapType.Cut);
             }
         }
         public void Draw(MonoGameInstance mgi)

@@ -1,13 +1,15 @@
-﻿using System;
+﻿using Blunatic.Core;
+using Blunatic.Mgc;
+using Microsoft.Xna.Framework;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Blunatic.Core;
-using Blunatic.Mgc;
-using Microsoft.Xna.Framework;
+using static MadaEmulator_MonoGame_Edition.Emulator;
 
 namespace MadaEmulator_MonoGame_Edition
 {
@@ -56,6 +58,10 @@ namespace MadaEmulator_MonoGame_Edition
             public string DisplayString { get; set; }
             public Token Token { get; set; }
 
+            public ProgramToken(Token token, string internalString) : this(token, internalString, internalString)
+            {
+
+            }
             public ProgramToken(Token token, string internalString, string displayString)
             {
                 InternalString = internalString;
@@ -85,6 +91,7 @@ namespace MadaEmulator_MonoGame_Edition
             public ProgramToken[] Tokens { get; set; }
             public int[] PrecedingWhitespace { get; set; }
             public string Comment { get; set; }
+            public string MachineCode { get; set; }
 
             public ProgramLine(Opcode opcode, string[] operands, ProgramToken[] tokens, int[] precedingWhitespace, string comment = null)
             {
@@ -93,6 +100,176 @@ namespace MadaEmulator_MonoGame_Edition
                 Tokens = tokens;
                 Comment = comment;
                 PrecedingWhitespace = precedingWhitespace;
+                MachineCode = ConvertProgramLineToMachineCode();
+            }
+            public ProgramLine(Random rng) : this([(byte)rng.Next(), (byte)rng.Next()])
+            {
+
+            }
+            public ProgramLine(byte[] machineCodeBytes) : this(machineCodeBytes.Aggregate(string.Empty, (i, x) => $"{i}{Convert.ToString(x, 2).PadLeft(8, '0')}"))
+            {
+
+            }
+            public ProgramLine(string machineCode)
+            {
+                if (!Regex.IsMatch(machineCode, "^( )*((0|1)( )*){16}$")) throw new FormatException($"Cannot parse the following into machine code: '{machineCode}'");
+                string compactMachineCode = machineCode.Split(' ').Where((x) => x.Length != 0).Aggregate(string.Empty, (i, x) => $"{i}{x}");
+
+                Comment = null;
+                MachineCode = $"{compactMachineCode.Substring(0, 4)} {compactMachineCode.Substring(4, 4)} {compactMachineCode.Substring(8, 4)} {compactMachineCode.Substring(12, 4)}";
+
+                Opcode = (Opcode)Convert.ToByte(compactMachineCode.Substring(0, 4), 2);
+
+                List<ProgramToken> tokens = new List<ProgramToken>() { new ProgramToken(Token.Opcode, $"{Opcode}", $"{Opcode}") };
+
+                byte addRegister(int index)
+                {
+                    byte returner = Convert.ToByte(compactMachineCode.Substring(index, 4), 2);
+                    tokens.Add(new ProgramToken(Token.Register, $"{returner}", $"r{returner}"));
+                    return returner;
+                }
+                byte addValue8(int index)
+                {
+                    byte returner = Convert.ToByte(compactMachineCode.Substring(index, 8), 2);
+                    tokens.Add(new ProgramToken(Token.Value8, $"{returner}"));
+                    return returner;
+                }
+                byte addValue7(int index)
+                {
+                    byte returner = Convert.ToByte(compactMachineCode.Substring(index, 7), 2);
+                    tokens.Add(new ProgramToken(Token.Value7, $"{returner}"));
+                    return returner;
+                }
+                byte addValue4(int index)
+                {
+                    byte returner = Convert.ToByte(compactMachineCode.Substring(index, 4), 2);
+                    tokens.Add(new ProgramToken(Token.Value4, $"{returner}"));
+                    return returner;
+                }
+                byte addCondition(int index)
+                {
+                    byte returner = (byte)(Convert.ToByte(compactMachineCode.Substring(index, 4), 2) & 0b00001100);
+                    tokens.Add(new ProgramToken(Token.Condition, $"{returner}", $"{(Condition)returner}"));
+                    return returner;
+                }
+
+                switch (Opcode)
+                {
+                    case Opcode.NOP:
+                    case Opcode.RET:
+                    case Opcode.HLT:
+                        {
+                            Operands = [];
+                        }
+                        break;
+                    case Opcode.ADD:
+                    case Opcode.SUB:
+                    case Opcode.NOR:
+                    case Opcode.AND:
+                    case Opcode.XOR:
+                    case Opcode.RSH:
+                    case Opcode.LOD:
+                        {
+                            Operands = [addRegister(4), addRegister(8), addRegister(12)];
+                        }
+                        break;
+                    case Opcode.LDI:
+                    case Opcode.ADI:
+                        {
+                            Operands = [addRegister(4), addValue8(8)];
+                        }
+                        break;
+                    case Opcode.JMP:
+                    case Opcode.CAL:
+                        {
+                            Operands = [addValue7(9)];
+                        }
+                        break;
+                    case Opcode.BNC:
+                        {
+                            Operands = [addCondition(4), addValue7(9)];
+                        }
+                        break;
+                    case Opcode.STR:
+                        {
+                            Operands = [addRegister(4), addRegister(8), addValue4(12)];
+                        }
+                        break;
+                }
+
+                Tokens = tokens.ToArray();
+                PrecedingWhitespace = new int[tokens.Count + 1];
+                for (int i = 1; i < PrecedingWhitespace.Length; i++) PrecedingWhitespace[i] = 1;
+            }
+
+            public string ConvertProgramLineToMachineCode()
+            {
+                string opcode()
+                {
+                    return get4((byte)Opcode);
+                }
+                string get8(byte value)
+                {
+                    string b = Convert.ToString(value, 2).PadLeft(8, '0');
+                    return b.Substring(0, 4) + " " + b.Substring(4);
+                }
+                string get7(byte value)
+                {
+                    string b = Convert.ToString(value, 2).PadLeft(8, '0');
+                    return "0" + b.Substring(1, 3) + " " + b.Substring(4);
+                }
+                string get4(byte value)
+                {
+                    string b = Convert.ToString(value, 2).PadLeft(8, '0');
+                    return b.Substring(4);
+                }
+                string combine(params string[] parts)
+                {
+                    string s = parts.Aggregate(string.Empty, (i, x) => $"{i} {x}");
+                    return s.Substring(1);
+                }
+                string blank = "0000";
+                switch (Opcode)
+                {
+                    case Opcode.NOP:
+                    case Opcode.RET:
+                    case Opcode.HLT:
+                        return (combine(opcode(), blank, blank, blank));
+                    case Opcode.ADD:
+                    case Opcode.SUB:
+                    case Opcode.NOR:
+                    case Opcode.AND:
+                    case Opcode.XOR:
+                        return (combine(opcode(), get4(Operands[0]), get4(Operands[1]), get4(Operands[2])));
+                    case Opcode.LDI:
+                    case Opcode.ADI:
+                        return (combine(opcode(), get4(Operands[0]), get8(Operands[1])));
+                    case Opcode.JMP:
+                    case Opcode.CAL:
+                        return (combine(opcode(), blank, get7(Operands[0])));
+                    case Opcode.BNC:
+                        return (combine(opcode(), get4(Operands[0]), get7(Operands[1])));
+                    case Opcode.RSH:
+                    case Opcode.LOD:
+                        if (Operands.Length == 2)
+                        {
+                            return (combine(opcode(), get4(Operands[0]), blank, get4(Operands[1])));
+                        }
+                        else
+                        {
+                            return (combine(opcode(), get4(Operands[0]), get4(Operands[1]), get4(Operands[2])));
+                        }
+                    case Opcode.STR:
+                        if (Operands.Length == 2)
+                        {
+                            return (combine(opcode(), get4(Operands[0]), get4(Operands[1]), blank));
+                        }
+                        else
+                        {
+                            return (combine(opcode(), get4(Operands[0]), get4(Operands[1]), get4(Operands[2])));
+                        }
+                }
+                throw new Exception("Failed to generate machine code.");
             }
 
             public override string ToString()
@@ -230,7 +407,6 @@ namespace MadaEmulator_MonoGame_Edition
         public Screen Screen;
 
         public List<ProgramLine> Program { get; private set; }
-        public List<string> ProgramBinary { get; private set; }
 
         public Stack<RunImage> History { get; private set; }
 
@@ -238,7 +414,19 @@ namespace MadaEmulator_MonoGame_Edition
         public Emulator(string path)
         {
             Program = new List<ProgramLine>();
+
             LoadProgram(path);
+
+            Reset();
+        }
+        public Emulator(Random rng)
+        {
+            Program = new List<ProgramLine>();
+
+            for (int i = 0; i < 128; i++)
+            {
+                Program.Add(new ProgramLine(rng));
+            }
 
             Reset();
         }
@@ -247,10 +435,10 @@ namespace MadaEmulator_MonoGame_Edition
         public void Reset()
         {
             Registers = new byte[16];
+            IsHalted = false;
             CallStack = new Stack<byte>();
             SetProgramCounter(0);
             InstructionCounter = 0;
-            IsHalted = false;
             Memory = new byte[256];
 
             Flags = new Dictionary<Condition, bool>()
@@ -260,6 +448,8 @@ namespace MadaEmulator_MonoGame_Edition
                 {Condition.C, false },
                 {Condition.NC, false },
             };
+
+            RandomiseStoredValues(new Random());
 
             Controller = new Controller(this);
             Screen = new Screen(this);
@@ -286,6 +476,21 @@ namespace MadaEmulator_MonoGame_Edition
         public void PushImage()
         {
             History.Push(new RunImage(Registers, CallStack, ProgramCounter, InstructionCounter, Flags, IsHalted, Memory, RandomSeed, Controller, Screen));
+        }
+
+        public void RandomiseStoredValues(Random rng)
+        {
+            for (int i = 0; i < Registers.Length; i++)
+            {
+                SetRegister((byte)i, (byte)rng.Next());
+            }
+
+            for (int i = 0; i < Memory.Length; i++)
+            {
+                SetMemory((byte)i, (byte)rng.Next());
+            }
+
+            Add((byte)rng.Next(), (byte)rng.Next());
         }
 
         public byte Add(byte x, byte y)
@@ -466,75 +671,6 @@ namespace MadaEmulator_MonoGame_Edition
             PushImage();
         }
 
-        public static string ConvertProgramLineToMachineCode(ProgramLine programLine)
-        {
-            string opcode()
-            {
-                return get4((byte)programLine.Opcode);
-            }
-            string get8(byte value)
-            {
-                string b = Convert.ToString(value, 2).PadLeft(8, '0');
-                return b.Substring(0, 4) + " " + b.Substring(4);
-            }
-            string get7(byte value)
-            {
-                string b = Convert.ToString(value, 2).PadLeft(8, '0');
-                return "0" + b.Substring(1, 3) + " " + b.Substring(4);
-            }
-            string get4(byte value)
-            {
-                string b = Convert.ToString(value, 2).PadLeft(8, '0');
-                return b.Substring(4);
-            }
-            string combine(params string[] parts)
-            {
-                string s = parts.Aggregate(string.Empty, (i, x) => $"{i} {x}");
-                return s.Substring(1);
-            }
-            string blank = "0000";
-            switch (programLine.Opcode)
-            {
-                case Opcode.NOP:
-                case Opcode.RET:
-                case Opcode.HLT:
-                    return (combine(opcode(), blank, blank, blank));
-                case Opcode.ADD:
-                case Opcode.SUB:
-                case Opcode.NOR:
-                case Opcode.AND:
-                case Opcode.XOR:
-                    return (combine(opcode(), get4(programLine.Operands[0]), get4(programLine.Operands[1]), get4(programLine.Operands[2])));
-                case Opcode.LDI:
-                case Opcode.ADI:
-                    return (combine(opcode(), get4(programLine.Operands[0]), get8(programLine.Operands[1])));
-                case Opcode.JMP:
-                case Opcode.CAL:
-                    return (combine(opcode(), blank, get7(programLine.Operands[0])));
-                case Opcode.BNC:
-                    return (combine(opcode(), get4(programLine.Operands[0]), get7(programLine.Operands[1])));
-                case Opcode.RSH:
-                case Opcode.LOD:
-                    if (programLine.Operands.Length == 2)
-                    {
-                        return (combine(opcode(), get4(programLine.Operands[0]), blank, get4(programLine.Operands[1])));
-                    }
-                    else
-                    {
-                        return (combine(opcode(), get4(programLine.Operands[0]), get4(programLine.Operands[1]), get4(programLine.Operands[2])));
-                    }
-                case Opcode.STR:
-                    if (programLine.Operands.Length == 2)
-                    {
-                        return (combine(opcode(), get4(programLine.Operands[0]), get4(programLine.Operands[1]), blank));
-                    }
-                    else
-                    {
-                        return (combine(opcode(), get4(programLine.Operands[0]), get4(programLine.Operands[1]), get4(programLine.Operands[2])));
-                    }
-            }
-            throw new Exception("Failed to generate machine code.");
-        }
         public Token[][] GetExpectedMatchesForOpcode(Opcode opcode)
         {
             return opcode switch
@@ -628,7 +764,6 @@ namespace MadaEmulator_MonoGame_Edition
         {
             List<string> programText = File.ReadAllLines(programPath).ToList();
             List<ProgramLine> program = new List<ProgramLine>();
-            List<string> programBinary = new List<string>();
             string[] programComments = new string[128];
             int[][] precedingWhitespace = new int[128][];
 
@@ -766,7 +901,7 @@ namespace MadaEmulator_MonoGame_Edition
                 programTokens[lineIndex] = list.ToArray();
             }
 
-            // Register and remove label headers
+            // Register label headers
             for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
             {
                 ProgramToken[] lineTokens = programTokens[lineIndex];
@@ -877,14 +1012,7 @@ namespace MadaEmulator_MonoGame_Edition
                 program.Add(new ProgramLine(opcode, values.ToArray(), lineTokens, precedingWhitespace[lineIndex], programComments[lineIndex]));
             }
 
-            // Generate Machine Code
-            for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
-            {
-                programBinary.Add(ConvertProgramLineToMachineCode(program[lineIndex]));
-            }
-
             Program = program;
-            ProgramBinary = programBinary;
         }
 
         public void IncrementProgramCounter()
@@ -902,7 +1030,6 @@ namespace MadaEmulator_MonoGame_Edition
             while (ProgramCounter >= Program.Count)
             {
                 Program.Add(new ProgramLine(Opcode.NOP, [], [new ProgramToken(Token.Opcode, "NOP", "NOP")], [0, 1], "// ! AUTOGENERATED !"));
-                ProgramBinary.Add("0000 0000 0000 0000");
             }
 
             if (Program[ProgramCounter].Opcode == Opcode.HLT)

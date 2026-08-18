@@ -1,4 +1,5 @@
 LDI r15 245 // flags memory
+STR r15 r0
 LDI r14 0b00000111 // 8 mask
 LDI r13 0b11100000 // input mask
 LDI r9 191 // buttons memory
@@ -124,5 +125,4 @@ ADD r1 r0 r11
 JMP .drawwholescreen
 .hitapple CAL .placeapple
 JMP .drawwholescreen
-.gameover HLT
-.win HLT
+.gameover .win HLT

@@ -2,6 +2,7 @@ LDI r15 0b10010010 // who's turn
 LDI r14 0b11000000 // selected Y
 LDI r13 1 // selected X
 LDI r11 245 // screen start
+STR r11 r0
 LDI r10 254 // x detector
 LDI r6 0b00011000 // corner check Y
 LDI r9 191 // controller in
