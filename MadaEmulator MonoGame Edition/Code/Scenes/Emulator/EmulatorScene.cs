@@ -85,6 +85,8 @@ namespace MadaEmulator_MonoGame_Edition
         private bool _hoveringBreakpoint;
 
         private bool _showMachineCode;
+        private bool _randomiseAllMemoryOnReset;
+        private bool _generateRandomProgramLinesWhenOutOfBounds;
 
         private string _programPath;
         private string _programDirectory;
@@ -104,6 +106,9 @@ namespace MadaEmulator_MonoGame_Edition
             _mgc = new MonoGameConsole(mgi, new Vec(120, 45));
 
             _loadedProgramType = LoadedProgramType.None;
+
+            _randomiseAllMemoryOnReset = false;
+            _generateRandomProgramLinesWhenOutOfBounds = false;
 
             _hoveredLine = -1;
             _hoveringBreakpoint = false;
@@ -168,6 +173,24 @@ namespace MadaEmulator_MonoGame_Edition
                 yield return "Toggle Machine Code";
             }
 
+            if (_randomiseAllMemoryOnReset)
+            {
+                yield return "Disable Memory Randomisation";
+            }
+            else
+            {
+                yield return "Enable Memory Randomisation";
+            }
+
+            if (_generateRandomProgramLinesWhenOutOfBounds)
+            {
+                yield return "Disable Out-Of-Bounds Program Generation";
+            }
+            else
+            {
+                yield return "Enable Out-Of-Bounds Program Generation";
+            }
+
             yield break;
         }
         public IEnumerable<string> GetHelpButtonDropdownOptions(MonoGameInstance mgi)
@@ -213,6 +236,16 @@ namespace MadaEmulator_MonoGame_Edition
                 case "Toggle Machine Code":
                     _showMachineCode = !_showMachineCode;
                     break;
+                case "Disable Memory Randomisation":
+                case "Enable Memory Randomisation":
+                    _randomiseAllMemoryOnReset = !_randomiseAllMemoryOnReset;
+                    SyncEmulatorConfig();
+                    break;
+                case "Disable Out-Of-Bounds Program Generation":
+                case "Enable Out-Of-Bounds Program Generation":
+                    _generateRandomProgramLinesWhenOutOfBounds = !_generateRandomProgramLinesWhenOutOfBounds;
+                    SyncEmulatorConfig();
+                    break;
             }
         }
         public void RespondToHelpButtonDropdown(object sender, DropdownScene.DropdownResultEventArgs args)
@@ -234,6 +267,7 @@ namespace MadaEmulator_MonoGame_Edition
                 _programDirectory = null;
                 _programName = $"RNG{seed}";
                 _emulator = new Emulator(new Random(seed));
+                SyncEmulatorConfig();
                 _loadedProgramType = LoadedProgramType.RandomlyGenerated;
 
                 ResetEmulatorEnvironment();
@@ -281,6 +315,7 @@ namespace MadaEmulator_MonoGame_Edition
             _programDirectory = _programPath.Substring(0, _programPath.Length - _programPath.Split('\\').Last().Length - 1);
             _programName = _programPath.Substring(_programDirectory.Length + 1);
             _emulator = new Emulator(_programPath);
+            SyncEmulatorConfig();
             _loadedProgramType = LoadedProgramType.FromFile;
 
             ResetEmulatorEnvironment();
@@ -307,6 +342,13 @@ namespace MadaEmulator_MonoGame_Edition
             {
                 _lowerLeftDisplay--;
             }
+        }
+
+        public void SyncEmulatorConfig()
+        {
+            if (_emulator == null) return;
+            _emulator.RandomiseStoredMemoryOnReset = _randomiseAllMemoryOnReset;
+            _emulator.GenerateRandomProgramLinesWhenOutOfBounds = _generateRandomProgramLinesWhenOutOfBounds;
         }
 
         public void RespondToFileExplorer(object sender, FileExplorerScene.FileExplorerResultEventArgs args)
