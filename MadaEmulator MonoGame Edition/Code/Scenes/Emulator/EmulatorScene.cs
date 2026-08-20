@@ -16,6 +16,14 @@ namespace MadaEmulator_MonoGame_Edition
     {
         // Constants
         private const int PROGRAM_DRAW_VERTICAL_OFFSET = 6;
+        private const int EMULATOR_VISUAL_SPLIT_LOCATION = 60;
+
+        // Interfaces
+        private interface IInfoboxReporter
+        {
+            public string GetTitle(MonoGameInstance mgi, Emulator emulator);
+            public string GetMessage(MonoGameInstance mgi, Emulator emulator);
+        }
 
         // Structs
         private struct TaskbarButtonEntry
@@ -55,6 +63,33 @@ namespace MadaEmulator_MonoGame_Edition
             FromFile,
             RandomlyGenerated,
         }
+        private enum InfoboxStatus
+        {
+            Hidden,
+            Fleeting,
+            Persistant,
+        }
+
+        // Classes
+        public class MemoryInfoboxReporter : IInfoboxReporter
+        {
+            private byte _index;
+
+            public MemoryInfoboxReporter(byte index)
+            {
+                _index = index;
+            }
+
+            public string GetTitle(MonoGameInstance mgi, Emulator emulator)
+            {
+                return $"Info for Memory Address {_index}";
+            }
+
+            public string GetMessage(MonoGameInstance mgi, Emulator emulator)
+            {
+                return $"0b{Convert.ToString(emulator.Memory[_index], 2).PadLeft(8, '0')} ({emulator.Memory[_index]})\n{Emulator.MEMORY_RESERVATION_IDENTIFIERS[_index]}\n{(Emulator.MEMORY_RESERVATION_DESCRIPTIONS[_index] ?? "")}"; ;
+            }
+        }
 
         // Properties
         public bool UpdatePreviousScene => false;
@@ -81,6 +116,8 @@ namespace MadaEmulator_MonoGame_Edition
         private MonoGameConsoleRegion _controllerByteRegion;
         private Vec _controllerScreenOrigin;
 
+        private MonoGameConsoleButton _infoboxButton;
+
         private bool[] _breakpoints;
         private bool _hoveringBreakpoint;
 
@@ -95,6 +132,9 @@ namespace MadaEmulator_MonoGame_Edition
         private float _instructionsPerSecond;
         private float _instructionRuntimeDebt;
         private bool _autoRun;
+
+        private InfoboxStatus _infoboxStatus;
+        private IInfoboxReporter _infoboxReporter;
 
         private Emulator _emulator;
 
@@ -127,7 +167,7 @@ namespace MadaEmulator_MonoGame_Edition
             _canvasRegion = new MonoGameConsoleRegion(new Rectangle(1, 3, _mgc.Dimensions.X - 2, _mgc.Dimensions.Y - 4));
             _mgc.AddElement(_canvasRegion);
 
-            _programRegion = new MonoGameConsoleRegion(new Rectangle(_canvasRegion.Position + new Vec(63, PROGRAM_DRAW_VERTICAL_OFFSET), new Vec(_canvasRegion.Dimensions.X - 63, _canvasRegion.Dimensions.Y - PROGRAM_DRAW_VERTICAL_OFFSET)));
+            _programRegion = new MonoGameConsoleRegion(new Rectangle(_canvasRegion.Position + new Vec(EMULATOR_VISUAL_SPLIT_LOCATION + 1, PROGRAM_DRAW_VERTICAL_OFFSET), new Vec(_canvasRegion.Dimensions.X - (EMULATOR_VISUAL_SPLIT_LOCATION + 1), _canvasRegion.Dimensions.Y - PROGRAM_DRAW_VERTICAL_OFFSET)));
             _mgc.AddElement(_programRegion);
 
             _programPath = null;
@@ -148,6 +188,14 @@ namespace MadaEmulator_MonoGame_Edition
             _controllerByteRegion = new MonoGameConsoleRegion(new Rectangle(_controllerScreenOrigin + new Vec(5, 10), new Vec(15, 1)));
 
             _showMachineCode = false;
+
+            _infoboxReporter = null;
+            _infoboxStatus = InfoboxStatus.Hidden;
+            _infoboxButton = new MonoGameConsoleButton(mgi, new Vec(_canvasRegion.Position.X + 58, _canvasRegion.Position.Y + 16), "X", false);
+            _infoboxButton.ActiveBackgroundColor = Color.Cyan;
+            _infoboxButton.IsHidden = true;
+            _infoboxButton.Inverted = true;
+            _mgc.AddElement(_infoboxButton);
         }
 
         // Methods
@@ -397,6 +445,12 @@ namespace MadaEmulator_MonoGame_Edition
             _mgc.Update(mgi);
             Vec hoveredCell = _mgc.GetCursorHoveredCellPos(mgi);
 
+            if (_infoboxStatus != InfoboxStatus.Persistant || _infoboxButton.IsLeftClicked)
+            {
+                _infoboxStatus = InfoboxStatus.Hidden;
+                _infoboxReporter = null;
+            }
+
             if (mgi.ControlWasJustPressed("escape"))
             {
                 mgi.SceneOut();
@@ -472,6 +526,23 @@ namespace MadaEmulator_MonoGame_Edition
                         if (relativePos.X % 2 == 0)
                         {
                             _emulator.Controller.ByteInput ^= (byte)(0b10000000 >> relativePos.X / 2);
+                        }
+                    }
+                }
+                else if (_lowerLeftDisplay == LowerLeftDisplayType.Memory)
+                {
+                    if (_infoboxStatus != InfoboxStatus.Persistant)
+                    {
+                        Vec relativePos = hoveredCell - (_canvasRegion.Position + new Vec(11, 25));
+                        if (relativePos.IsInBounds(new Rectangle(0, 0, 48, 16)) && relativePos.X % 3 != 0)
+                        {
+                            _infoboxStatus = InfoboxStatus.Fleeting;
+                            int hoveredIndex = 16 * relativePos.Y + relativePos.X / 3;
+                            _infoboxReporter = new MemoryInfoboxReporter((byte)hoveredIndex);
+                            if (mgi.CursorState.WasJustPressed(MouseButton.Right))
+                            {
+                                _infoboxStatus = InfoboxStatus.Persistant;
+                            }
                         }
                     }
                 }
@@ -583,6 +654,8 @@ namespace MadaEmulator_MonoGame_Edition
                     break;
                 }
             }
+
+            _infoboxButton.IsHidden = _infoboxStatus != InfoboxStatus.Persistant;
         }
 
         private void _drawOuterBorder()
@@ -607,9 +680,9 @@ namespace MadaEmulator_MonoGame_Edition
             _mgc.Fill(new Rectangle(_canvasRegion.Position.X, _canvasRegion.Position.Y + 1, _canvasRegion.Dimensions.X, 1), Ch.Border.n0.e1.s0.w1, new Color(80, 80, 80));
             _mgc.SetCell(_canvasRegion.Position + new Vec(-1, 1), Ch.Border.n1.e1.s1.w0, new Color(80, 80, 80));
             _mgc.SetCell(_canvasRegion.Position + new Vec(_canvasRegion.Dimensions.X, 1), Ch.Border.n1.e0.s1.w1, new Color(80, 80, 80));
-            _mgc.SetCell(_canvasRegion.Position + new Vec(62, 1), Ch.Border.n0.e1.s1.w1, new Color(80, 80, 80));
-            _mgc.SetCell(_canvasRegion.Position + new Vec(62, _canvasRegion.Dimensions.Y), Ch.Border.n1.e1.s0.w1, new Color(80, 80, 80));
-            _mgc.Fill(new Rectangle(_canvasRegion.Position + new Vec(62, 2), new Vec(1, _canvasRegion.Dimensions.Y - 2)), Ch.Border.n1.e0.s1.w0, new Color(80, 80, 80));
+            _mgc.SetCell(_canvasRegion.Position + new Vec(EMULATOR_VISUAL_SPLIT_LOCATION, 1), Ch.Border.n0.e1.s1.w1, new Color(80, 80, 80));
+            _mgc.SetCell(_canvasRegion.Position + new Vec(EMULATOR_VISUAL_SPLIT_LOCATION, _canvasRegion.Dimensions.Y), Ch.Border.n1.e1.s0.w1, new Color(80, 80, 80));
+            _mgc.Fill(new Rectangle(_canvasRegion.Position + new Vec(EMULATOR_VISUAL_SPLIT_LOCATION, 2), new Vec(1, _canvasRegion.Dimensions.Y - 2)), Ch.Border.n1.e0.s1.w0, new Color(80, 80, 80));
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(0, 2), $"Flags:");
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(1, 3), $"{Fm.Fg(Color.DarkGray)}Z: {(_emulator.Flags[Emulator.Condition.Z] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")} {Fm.Fg(Color.DarkGray)}NZ: {(_emulator.Flags[Emulator.Condition.NZ] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")}");
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(1, 4), $"{Fm.Fg(Color.DarkGray)}C: {(_emulator.Flags[Emulator.Condition.C] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")} {Fm.Fg(Color.DarkGray)}NC: {(_emulator.Flags[Emulator.Condition.NC] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")}");
@@ -621,6 +694,15 @@ namespace MadaEmulator_MonoGame_Edition
             {
                 _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(23, 7 + i), $" {Fm.Fg(Color.DarkGray)}0b{Convert.ToString(b, 2).PadLeft(8, '0')} ({b})");
                 i++;
+            }
+            for (; i < 8; i++)
+            {
+                _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(23, 7 + i), $" {Fm.Fg(Color.DarkGray)}-");
+            }
+            if (_infoboxStatus != InfoboxStatus.Hidden)
+            {
+                _mgc.Box(mgi, new Rectangle(_canvasRegion.Position.X + 23, _canvasRegion.Position.Y + 16, 36, 8), _infoboxReporter.GetTitle(mgi, _emulator), _infoboxStatus == InfoboxStatus.Persistant ? Color.White : new Color(71, 71, 71));
+                _mgc.WriteString(mgi, new Vec(_canvasRegion.Position.X + 24, _canvasRegion.Position.Y + 17), $"{Fm.Fg(_infoboxStatus == InfoboxStatus.Persistant ? Color.LightGray : new Color(110, 110, 110))}{_infoboxReporter.GetMessage(mgi, _emulator)}", new Vec(34, 6), MonoGameConsole.WrapType.WordWrap);
             }
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(0, 6), $"Registers:");
             for (i = 0; i < _emulator.Registers.Length; i++)
@@ -639,7 +721,7 @@ namespace MadaEmulator_MonoGame_Edition
                             _mgc.WriteString(mgi, drawPos, $" {Fm.Fg(Color.DarkGray)}{$"{i * 16}".PadLeft(3, ' ')} - {$"{i * 16 + 15}".PadLeft(3, ' ')}:{Iterate.InBounds(i * 16, i * 16 + 16).Aggregate(string.Empty, (s, v) =>
                             {
                                 string addition = _emulator.Memory[v].ToString("X").PadLeft(2, '0');
-                                addition = $"{(addition == "00" ? Fm.Fg(Color.DarkGray) : Fm.Fg(Color.White))}{(Emulator.MEMORY_IN_ALL.Contains((byte)v) ? Fm.Bg(new Color(0, 100, 0)) : Emulator.MEMORY_OUT_ALL.Contains((byte)v) ? Fm.Bg(new Color(100, 0, 0)) : Fm.Bg(Color.Black))}{addition}{Fm.Bg(Color.Black)}";
+                                addition = $"{(addition == "00" ? Fm.Fg(Color.DarkGray) : Fm.Fg(Color.White))}{(Emulator.INPUT_ONLY_MEMORY[v] ? Fm.Bg(new Color(0, 100, 0)) : Emulator.OUTPUT_ONLY_MEMORY[v] ? Fm.Bg(new Color(100, 0, 0)) : Fm.Bg(Color.Black))}{addition}{Fm.Bg(Color.Black)}";
                                 return $"{s} {addition}";
                             })}");
                         }
@@ -738,8 +820,8 @@ namespace MadaEmulator_MonoGame_Edition
                     }
                     break;
             }
-            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, 2), $"Loaded: {Fm.Fg(Color.DarkGray)}{_programName}", _programRegion.Dimensions.X, MonoGameConsole.WrapType.Cut);
-            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, 4), $"Program: {(_autoRun ? $"{Fm.Fg(Color.Yellow)}RUNNING at {_instructionsPerSecond}Hz {Fm.Fg(new Color(80, 80, 80))}({(_instructionRuntimeDebt*100):0.00}%)" : (_emulator.IsHalted ? $"{Fm.Fg(Color.Green)}Halted" : string.Empty))}");
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(EMULATOR_VISUAL_SPLIT_LOCATION + 1, 2), $"Loaded: {Fm.Fg(Color.DarkGray)}{_programName}", _programRegion.Dimensions.X, MonoGameConsole.WrapType.Cut);
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(EMULATOR_VISUAL_SPLIT_LOCATION + 1, 4), $"Program: {(_autoRun ? $"{Fm.Fg(Color.Yellow)}RUNNING at {_instructionsPerSecond}Hz {Fm.Fg(new Color(80, 80, 80))}({(_instructionRuntimeDebt*100):0.00}%)" : (_emulator.IsHalted ? $"{Fm.Fg(Color.Green)}Halted" : string.Empty))}");
             for (i = _programOffset; i < _emulator.Program.Count && i + PROGRAM_DRAW_VERTICAL_OFFSET - _programOffset < _canvasRegion.Dimensions.Y; i++)
             {
                 Color backgroundColorForLine;
@@ -768,7 +850,7 @@ namespace MadaEmulator_MonoGame_Edition
                     backgroundColorForLine = Color.Black;
                 }
 
-                _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(63, i + PROGRAM_DRAW_VERTICAL_OFFSET - _programOffset), $"{(_hoveringBreakpoint && _hoveredLine == i ? $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}{Ch.AsChar(Ch.Circle)}" : $"{Fm.Fg(Color.DarkRed)}{Ch.AsChar(Ch.Circle)}")}" : $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}{Ch.AsChar(Ch.Circle)}" : $" ")}")}{Fm.Fg(new Color(60, 60, 60))}{$"{i}".PadLeft(3, ' ')} {Fm.Col(Color.White, backgroundColorForLine)}{(_showMachineCode ? _emulator.Program[i].MachineCode : _emulator.Program[i].ToFormattedString(mgi))}{new string(' ', _programRegion.Dimensions.X)}", _programRegion.Dimensions.X - 4, MonoGameConsole.WrapType.Cut);
+                _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(EMULATOR_VISUAL_SPLIT_LOCATION + 1, i + PROGRAM_DRAW_VERTICAL_OFFSET - _programOffset), $"{(_hoveringBreakpoint && _hoveredLine == i ? $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}{Ch.AsChar(Ch.Circle)}" : $"{Fm.Fg(Color.DarkRed)}{Ch.AsChar(Ch.Circle)}")}" : $"{(_breakpoints[i] ? $"{Fm.Fg(Color.Red)}{Ch.AsChar(Ch.Circle)}" : $" ")}")}{Fm.Fg(new Color(60, 60, 60))}{$"{i}".PadLeft(3, ' ')} {Fm.Col(Color.White, backgroundColorForLine)}{(_showMachineCode ? _emulator.Program[i].MachineCode : _emulator.Program[i].ToFormattedString(mgi))}{new string(' ', _programRegion.Dimensions.X)}", _programRegion.Dimensions.X - 4, MonoGameConsole.WrapType.Cut);
             }
         }
         public void Draw(MonoGameInstance mgi)

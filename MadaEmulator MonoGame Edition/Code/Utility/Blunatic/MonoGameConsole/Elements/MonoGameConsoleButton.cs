@@ -24,6 +24,7 @@ namespace Blunatic.Mgc
         public bool IsRightClicked { get; private set; }
         public bool IsMiddleClicked { get; private set; }
         public bool Inverted { get { return _inverted; } set { _inverted = value; } }
+        public bool IsHidden { get; set; }
 
         public Color InactiveBackgroundColor { get; set; }
         public Color ActiveBackgroundColor { get; set; }
@@ -46,6 +47,7 @@ namespace Blunatic.Mgc
         // Constructors
         public MonoGameConsoleButton(MonoGameInstance mgi, Vec pos, string text, bool havePatternedSides = true)
         {
+            IsHidden = false;
             InactiveBackgroundColor = DEFALULT_INACTIVE_BACKGROUND_COLOR;
             ActiveBackgroundColor = DEFALULT_ACTIVE_BACKGROUND_COLOR;
             _inverted = false;
@@ -76,6 +78,7 @@ namespace Blunatic.Mgc
 
         public void Update(MonoGameInstance mgi, MonoGameConsole mgc)
         {
+            if (IsHidden) return;
             Vec cursorHover = mgc.GetCursorHoveredCellPos(mgi);
 
             IsHovered = cursorHover.IsInBounds(_rectangle);
@@ -91,6 +94,7 @@ namespace Blunatic.Mgc
 
         public void Draw(MonoGameInstance mgi, MonoGameConsole mgc)
         {
+            if (IsHidden) return;
             Color fg = Color.White;
             Color bg = IsHovered ? ActiveBackgroundColor : InactiveBackgroundColor;
 

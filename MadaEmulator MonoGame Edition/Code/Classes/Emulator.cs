@@ -27,18 +27,46 @@ namespace MadaEmulator_MonoGame_Edition
         public const byte MEMORY_IN_CONTROLLER_BUTTONS = 191; // Red Green Blue Enter - - - -
         public const byte MEMORY_IN_NIBBLE_SWAPPER = 63;
 
-        public static HashSet<byte> MEMORY_IN_ALL = 
-            new HashSet<byte>() { MEMORY_IN_RANDOMIZER, MEMORY_IN_CONTROLLER_BYTE, MEMORY_IN_CONTROLLER_BUTTONS, MEMORY_IN_NIBBLE_SWAPPER }
-            .ToHashSet();
-
         public static readonly HashSet<byte> MEMORY_OUT_SCREEN = new HashSet<byte> { 246, 247, 248, 249, 250, 251, 252, 253 };
         public const byte MEMORY_OUT_FLAGS = 245; // - - - - - ScreenOn ByteAcknowledge ColourAcknowledge
         public const byte MEMORY_OUT_NIBBLE_SWAPPER = 31;
 
-        public static HashSet<byte> MEMORY_OUT_ALL = 
-            new HashSet<byte>() { MEMORY_OUT_FLAGS, MEMORY_OUT_NIBBLE_SWAPPER }
-            .Union(MEMORY_OUT_SCREEN)
-            .ToHashSet();
+        public static readonly string[] MEMORY_RESERVATION_IDENTIFIERS = new string[256];
+        public static readonly string[] MEMORY_RESERVATION_DESCRIPTIONS = new string[256];
+        public static readonly bool[] INPUT_ONLY_MEMORY = new bool[256];
+        public static readonly bool[] OUTPUT_ONLY_MEMORY = new bool[256];
+
+        static Emulator()
+        {
+            for (int i = 0; i < MEMORY_RESERVATION_IDENTIFIERS.Length; i++)
+            {
+                MEMORY_RESERVATION_IDENTIFIERS[i] = "Standard Memory";
+            }
+
+            void register(string identifier, bool isInput, params byte[] addresses)
+            {
+                registerWithDescription(identifier, null, isInput, addresses);
+            }
+            void registerWithDescription(string identifier, string description, bool isInput, params byte[] addresses)
+            {
+                bool[] record = isInput ? INPUT_ONLY_MEMORY : OUTPUT_ONLY_MEMORY;
+                foreach (byte address in addresses)
+                {
+                    MEMORY_RESERVATION_IDENTIFIERS[address] = identifier;
+                    MEMORY_RESERVATION_DESCRIPTIONS[address] = description;
+                    record[address] = true;
+                }
+            }
+
+            register("Randomiser Input", true, 159);
+            register("Controller Byte Input", true, 255);
+            registerWithDescription("Controller Buttons Input RGBE----", "R: Red Button State\nG: Green Button State\nB: Blue Button State\nE: Enter Button State", true, 191);
+            register("Nibble Swapper Return", true, 63);
+
+            register("Screen Lights Output", false, 246, 247, 248, 249, 250, 251, 252, 253);
+            registerWithDescription("Misc Flags Output -----SBC", "S: Screen Off\nB: Controller Enter Acknowledge\nC: Controller Colours Acknowledge", false, 245);
+            register("Nibble Swapper Take", false, 31);
+        }
 
         public static Dictionary<Token, string> PROGRAM_TOKEN_FORMAT_HEADERS = new Dictionary<Token, string>()
         {
@@ -1095,12 +1123,12 @@ namespace MadaEmulator_MonoGame_Edition
 
         public byte GetMemory(byte index)
         {
-            if (MEMORY_OUT_ALL.Contains(index)) return 0;
+            if (OUTPUT_ONLY_MEMORY[index]) return 0;
             return Memory[index];
         }
         public void SetMemory(byte index, byte value)
         {
-            if (MEMORY_IN_ALL.Contains(index)) return;
+            if (INPUT_ONLY_MEMORY[index]) return;
             Memory[index] = value;
             if (index == MEMORY_OUT_NIBBLE_SWAPPER)
             {
