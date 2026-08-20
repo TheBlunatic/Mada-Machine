@@ -452,9 +452,9 @@ namespace MadaEmulator_MonoGame_Edition
             Flags = new Dictionary<Condition, bool>()
             {
                 {Condition.Z, false },
-                {Condition.NZ, false },
+                {Condition.NZ, true },
                 {Condition.C, false },
-                {Condition.NC, false },
+                {Condition.NC, true },
             };
 
             if (RandomiseStoredMemoryOnReset) RandomiseStoredValues(new Random());
