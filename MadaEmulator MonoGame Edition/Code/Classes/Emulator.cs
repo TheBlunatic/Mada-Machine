@@ -404,10 +404,10 @@ namespace MadaEmulator_MonoGame_Edition
         }
         public enum Condition : byte
         {
-            Z = 0b00000000,
-            NZ = 0b00000100,
-            C = 0b00001000,
-            NC = 0b00001100,
+            C = 0b00000000,
+            NC = 0b00000100,
+            Z = 0b00001000,
+            NZ = 0b00001100,
         }
         public enum Token
         {

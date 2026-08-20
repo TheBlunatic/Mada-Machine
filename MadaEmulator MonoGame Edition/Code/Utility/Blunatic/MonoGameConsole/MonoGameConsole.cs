@@ -842,7 +842,10 @@ namespace Blunatic.Mgc
                 }
             }
 
-            if (ClearScreenAfterDraw) Clear();
+            if (ClearScreenAfterDraw)
+            {
+                Clear();
+            }
 
             mgi.SpriteBatch.End();
         }

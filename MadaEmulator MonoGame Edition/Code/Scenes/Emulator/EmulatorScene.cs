@@ -243,6 +243,8 @@ namespace MadaEmulator_MonoGame_Edition
         }
         public IEnumerable<string> GetHelpButtonDropdownOptions(MonoGameInstance mgi)
         {
+            yield return "View Cheat Sheet";
+
             yield break;
         }
 
@@ -300,7 +302,8 @@ namespace MadaEmulator_MonoGame_Edition
         {
             switch (args.SelectedValue)
             {
-                default:
+                case "View Cheat Sheet":
+                    args.MonoGameInstance.SceneIn(new CheatSheetScene(args.MonoGameInstance));
                     break;
             }
         }
@@ -684,8 +687,8 @@ namespace MadaEmulator_MonoGame_Edition
             _mgc.SetCell(_canvasRegion.Position + new Vec(EMULATOR_VISUAL_SPLIT_LOCATION, _canvasRegion.Dimensions.Y), Ch.Border.n1.e1.s0.w1, new Color(80, 80, 80));
             _mgc.Fill(new Rectangle(_canvasRegion.Position + new Vec(EMULATOR_VISUAL_SPLIT_LOCATION, 2), new Vec(1, _canvasRegion.Dimensions.Y - 2)), Ch.Border.n1.e0.s1.w0, new Color(80, 80, 80));
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(0, 2), $"Flags:");
-            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(1, 3), $"{Fm.Fg(Color.DarkGray)}Z: {(_emulator.Flags[Emulator.Condition.Z] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")} {Fm.Fg(Color.DarkGray)}NZ: {(_emulator.Flags[Emulator.Condition.NZ] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")}");
-            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(1, 4), $"{Fm.Fg(Color.DarkGray)}C: {(_emulator.Flags[Emulator.Condition.C] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")} {Fm.Fg(Color.DarkGray)}NC: {(_emulator.Flags[Emulator.Condition.NC] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")}");
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(1, 3), $"{Fm.Fg(Color.DarkGray)}C: {(_emulator.Flags[Emulator.Condition.C] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")} {Fm.Fg(Color.DarkGray)}NC: {(_emulator.Flags[Emulator.Condition.NC] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")}");
+            _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(1, 4), $"{Fm.Fg(Color.DarkGray)}Z: {(_emulator.Flags[Emulator.Condition.Z] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")} {Fm.Fg(Color.DarkGray)}NZ: {(_emulator.Flags[Emulator.Condition.NZ] ? $"{Fm.Fg(Color.Green)}True " : $"{Fm.Fg(Color.Red)}False")}");
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(23, 2), $"Program Counter: {Fm.Fg(Color.DarkGray)}{_emulator.ProgramCounter}");
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(23, 4), $"Instruction Counter: {Fm.Fg(Color.DarkGray)}{_emulator.InstructionCounter}");
             _mgc.WriteString(mgi, _canvasRegion.Position + new Vec(23, 6), $"Call Stack:");
