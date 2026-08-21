@@ -66,7 +66,7 @@ namespace Blunatic.Mgc
         // Methods
         public void Update(MonoGameInstance mgi, MonoGameConsole mgc)
         {
-            Vec hoveredPos = mgc.GetCursorHoveredCellPos(mgi);
+            Vec hoveredPos = mgc.GetCursorCellPos(mgi);
 
             if (_active)
             {

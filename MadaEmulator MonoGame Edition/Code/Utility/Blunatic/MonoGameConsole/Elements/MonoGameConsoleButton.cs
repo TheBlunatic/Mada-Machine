@@ -79,7 +79,7 @@ namespace Blunatic.Mgc
         public void Update(MonoGameInstance mgi, MonoGameConsole mgc)
         {
             if (IsHidden) return;
-            Vec cursorHover = mgc.GetCursorHoveredCellPos(mgi);
+            Vec cursorHover = mgc.GetCursorCellPos(mgi);
 
             IsHovered = cursorHover.IsInBounds(_rectangle);
 

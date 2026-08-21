@@ -63,7 +63,7 @@ namespace Blunatic.Mgc
         {
             ClickDetector.Update(mgi, mgc);
 
-            Vec cursorHover = mgc.GetCursorHoveredCellPos(mgi);
+            Vec cursorHover = mgc.GetCursorCellPos(mgi);
             IsHovered = cursorHover.IsInBounds(_area);
 
             IsLeftClicked = IsHovered && mgi.CursorState.WasJustPressed(MouseButton.Left);

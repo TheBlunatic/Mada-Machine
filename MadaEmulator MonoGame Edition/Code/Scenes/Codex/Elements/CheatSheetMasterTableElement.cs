@@ -32,7 +32,7 @@ namespace MadaEmulator_MonoGame_Edition
 
         // Properties
         public Vec Position { get; set; }
-        public Vec Dimensions => new Vec(0, 0);
+        public Vec Dimensions => new Vec(99, 28);
         public bool CapturingControls => false;
 
         // Constructors

@@ -174,7 +174,7 @@ namespace Blunatic.Scenes
         // Scene Methods
         public void Update(MonoGameInstance mgi)
         {
-            Vec hoveredCell = _mgc.GetCursorHoveredCellPos(mgi);
+            Vec hoveredCell = _mgc.GetCursorCellPos(mgi);
 
             bool controlsBeingCaptured = false;
             if (_textInput != null) controlsBeingCaptured = _textInput.CapturingControls;
@@ -324,7 +324,7 @@ namespace Blunatic.Scenes
             _mgc.SetCell(new Vec(_mgc.Dimensions.X - 1, _mgc.Dimensions.Y - 3), Ch.Border.n2.e0.s2.w2);
             _mgc.WriteString(mgi, new Vec(_mgc.Dimensions.X - 2 - _mode.ToString().Length, 0), $"{Fm.Fg(Color.Yellow)}{_mode.ToString()}");
 
-            Vec hoveredCell = _mgc.GetCursorHoveredCellPos(mgi);
+            Vec hoveredCell = _mgc.GetCursorCellPos(mgi);
 
             for (int i = 0; i <= _mgc.Dimensions.Y - 7 && i + _scroll < _entries.Count; i++)
             {

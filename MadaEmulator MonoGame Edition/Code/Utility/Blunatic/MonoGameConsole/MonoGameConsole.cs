@@ -574,15 +574,24 @@ namespace Blunatic.Mgc
         {
             return _rectangleOccupied.Contains(mgi.CursorState.Position.ToPoint());
         }
-        public Vec GetCursorHoveredCellPos(MonoGameInstance mgi)
+        public Vec GetCursorCellPos(MonoGameInstance mgi)
         {
-            return GetCursorPositionCellPos(mgi.CursorState.Position);
+            return GetScreenPositionCellPos(mgi.CursorState.Position);
         }
-        public Vec GetCursorPositionCellPos(Vec position)
+        public Vector2 GetCursorInsideCellPos(MonoGameInstance mgi)
+        {
+            return GetScreenPositionInsideCellPos(mgi.CursorState.Position);
+        }
+        public Vec GetScreenPositionCellPos(Vec position)
         {
             Vector2 relativePosition = position - Vec.GetXY(_rectangleOccupied);
-            Vec returner = new Vec(relativePosition / new Vector2(Ch.CharWidth * _charScale, Ch.CharHeight * _charScale));
-            return returner;
+            return new Vec(relativePosition / new Vector2(Ch.CharWidth * _charScale, Ch.CharHeight * _charScale));
+        }
+        public Vector2 GetScreenPositionInsideCellPos(Vec position)
+        {
+            Vector2 relativePosition = position - Vec.GetXY(_rectangleOccupied);
+            Vector2 insidePosition = relativePosition / new Vector2(Ch.CharWidth * _charScale, Ch.CharHeight * _charScale);
+            return insidePosition - new Vec(insidePosition).ToVector2();
         }
 
         public void AddElement(IMonoGameConsoleElement mgobj)

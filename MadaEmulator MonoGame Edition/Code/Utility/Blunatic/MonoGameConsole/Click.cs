@@ -24,8 +24,11 @@ namespace Blunatic.Mgc
         {
             public Mode ClickMode;
             public Vec StartingCell;
+            public Vector2 StartingCellRelative;
             public Vec LastCell;
+            public Vector2 LastCellRelative;
             public Vec PenultimateCell;
+            public Vector2 PenultimateCellRelative;
             public bool HasLeftStartingCell;
             public int TickAge;
 
@@ -34,8 +37,11 @@ namespace Blunatic.Mgc
                 ClickMode = Mode.None;
                 HasLeftStartingCell = false;
                 StartingCell = new Vec(0, 0);
+                StartingCellRelative = new Vector2(0.5f);
                 LastCell = new Vec(0, 0);
+                LastCellRelative = new Vector2(0.5f);
                 PenultimateCell = new Vec(0, 0);
+                PenultimateCellRelative = new Vector2(0.5f);
                 TickAge = 0;
             }
         }
@@ -67,9 +73,12 @@ namespace Blunatic.Mgc
             private void _initialiseNewClick(MonoGameInstance mgi, MonoGameConsole mgc, Mode newMode)
             {
                 _currentTickClick.ClickMode = newMode;
-                _currentTickClick.StartingCell = mgc.GetCursorHoveredCellPos(mgi);
+                _currentTickClick.StartingCell = mgc.GetCursorCellPos(mgi);
+                _currentTickClick.StartingCellRelative = mgc.GetCursorInsideCellPos(mgi);
                 _currentTickClick.PenultimateCell = _currentTickClick.StartingCell;
+                _currentTickClick.PenultimateCellRelative = _currentTickClick.StartingCellRelative;
                 _currentTickClick.LastCell = _currentTickClick.StartingCell;
+                _currentTickClick.LastCellRelative = _currentTickClick.StartingCellRelative;
                 _currentTickClick.TickAge = 0;
                 _currentTickClick.HasLeftStartingCell = false;
             }
@@ -79,7 +88,9 @@ namespace Blunatic.Mgc
 
                 _currentTickClick.TickAge++;
                 _currentTickClick.PenultimateCell = _currentTickClick.LastCell;
-                _currentTickClick.LastCell = mgc.GetCursorHoveredCellPos(mgi);
+                _currentTickClick.PenultimateCellRelative = _currentTickClick.LastCellRelative;
+                _currentTickClick.LastCell = mgc.GetCursorCellPos(mgi);
+                _currentTickClick.LastCellRelative = mgc.GetCursorInsideCellPos(mgi);
 
                 if (_currentTickClick.LastCell != _currentTickClick.StartingCell) _currentTickClick.HasLeftStartingCell = true;
 

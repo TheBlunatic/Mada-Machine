@@ -116,6 +116,8 @@ namespace MadaEmulator_MonoGame_Edition
         private MonoGameConsoleRegion _controllerByteRegion;
         private Vec _controllerScreenOrigin;
 
+        private MonoGameConsoleVerticalScrollBar _programScrollBar;
+
         private MonoGameConsoleButton _infoboxButton;
 
         private bool[] _breakpoints;
@@ -196,6 +198,9 @@ namespace MadaEmulator_MonoGame_Edition
             _infoboxButton.IsHidden = true;
             _infoboxButton.Inverted = true;
             _mgc.AddElement(_infoboxButton);
+
+            _programScrollBar = new MonoGameConsoleVerticalScrollBar(mgi, new Vec(_canvasRegion.Position.X + _canvasRegion.Dimensions.X - 2, _canvasRegion.Position.Y + PROGRAM_DRAW_VERTICAL_OFFSET), new Vec(1, _canvasRegion.Dimensions.Y - PROGRAM_DRAW_VERTICAL_OFFSET), 0, 0);
+            _mgc.AddElement(_programScrollBar);
         }
 
         // Methods
@@ -446,7 +451,7 @@ namespace MadaEmulator_MonoGame_Edition
         public void Update(MonoGameInstance mgi)
         {
             _mgc.Update(mgi);
-            Vec hoveredCell = _mgc.GetCursorHoveredCellPos(mgi);
+            Vec hoveredCell = _mgc.GetCursorCellPos(mgi);
 
             if (_infoboxStatus != InfoboxStatus.Persistant || _infoboxButton.IsLeftClicked)
             {
@@ -466,7 +471,11 @@ namespace MadaEmulator_MonoGame_Edition
                 return;
             }
 
-            if (_emulator != null)
+            if (_emulator == null)
+            {
+                _programScrollBar.IsHidden = true;
+            }
+            else
             {
                 if (mgi.ControlWasJustPressed("reload program"))
                 {
@@ -623,15 +632,22 @@ namespace MadaEmulator_MonoGame_Edition
                     if (scrollThisTick != 0 && _emulator.Program.Count > _programRegion.Dimensions.Y)
                     {
                         _programOffset -= Math.Sign(scrollThisTick);
-                        if (_programOffset < 0)
-                        {
-                            _programOffset = 0;
-                        }
-                        else if (_programOffset > _emulator.Program.Count - _programRegion.Dimensions.Y)
-                        {
-                            _programOffset = _emulator.Program.Count - _programRegion.Dimensions.Y;
-                        }
                     }
+
+                    if (_programScrollBar.IsClicked)
+                    {
+                        _programOffset = (int)_programScrollBar.TargetValue;
+                    }
+
+                    if (_programOffset > _emulator.Program.Count - _programRegion.Dimensions.Y)
+                    {
+                        _programOffset = _emulator.Program.Count - _programRegion.Dimensions.Y;
+                    }
+                    if (_programOffset < 0)
+                    {
+                        _programOffset = 0;
+                    }
+
                     Vec relativeCursorPosition = _programRegion.GetRelativePositionOfScreenPosition(hoveredCell);
                     int hoveredIndex = relativeCursorPosition.Y + _programOffset;
                     if (hoveredIndex < _emulator.Program.Count && hoveredIndex >= 0)
@@ -647,6 +663,13 @@ namespace MadaEmulator_MonoGame_Edition
                         }
                     }
                 }
+
+                _programScrollBar.ViewSize = _canvasRegion.Dimensions.Y - PROGRAM_DRAW_VERTICAL_OFFSET;
+                _programScrollBar.TotalSize = _emulator.Program.Count;
+
+                _programScrollBar.TargetValue = _programOffset;
+
+                _programScrollBar.IsHidden = _emulator.Program.Count <= _canvasRegion.Dimensions.Y - PROGRAM_DRAW_VERTICAL_OFFSET;
             }
 
             foreach (TaskbarButtonEntry entry in _topLevelTaskbarButtonEntries)
