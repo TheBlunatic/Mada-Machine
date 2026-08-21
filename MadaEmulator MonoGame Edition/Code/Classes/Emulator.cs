@@ -1022,6 +1022,7 @@ namespace MadaEmulator_MonoGame_Edition
 
                 bool success = false;
                 List<string> values = new List<string>();
+                List<Token> actualTokens = new List<Token>();
                 foreach (Token[] match in expectedMatches)
                 {
                     if (match.Length != lineTokens.Length - opcodeIndex - 1)
@@ -1029,6 +1030,7 @@ namespace MadaEmulator_MonoGame_Edition
                         continue;
                     }
                     values.Clear();
+                    actualTokens.Clear();
                     success = true;
                     int positionInLine = opcodeIndex + 1;
                     for (int i = 0; i < match.Length;)
@@ -1039,6 +1041,7 @@ namespace MadaEmulator_MonoGame_Edition
                             break;
                         }
                         values.Add(lineTokens[positionInLine].InternalString);
+                        actualTokens.Add(match[i]);
                         i++;
                         positionInLine++;
                     }
@@ -1050,6 +1053,14 @@ namespace MadaEmulator_MonoGame_Edition
                 if (!success)
                 {
                     throw new FormatException($"Line {lineIndex}: Opcode '{opcode}' cannot accept these operands.");
+                }
+
+                int properIndex = opcodeIndex + 1;
+                for (int i = 0; i < actualTokens.Count;)
+                {
+                    lineTokens[properIndex].Token = actualTokens[i];
+                    i++;
+                    properIndex++;
                 }
 
                 program.Add(new ProgramLine(opcode, values.ToArray(), lineTokens, precedingWhitespace[lineIndex], programComments[lineIndex]));

@@ -147,8 +147,6 @@ namespace MadaEmulator_MonoGame_Edition
         {
             _mgc = new MonoGameConsole(mgi, new Vec(120, 45));
 
-            _loadedProgramType = LoadedProgramType.None;
-
             _randomiseAllMemoryOnReset = false;
             _generateRandomProgramLinesWhenOutOfBounds = false;
 
@@ -172,10 +170,7 @@ namespace MadaEmulator_MonoGame_Edition
             _programRegion = new MonoGameConsoleRegion(new Rectangle(_canvasRegion.Position + new Vec(EMULATOR_VISUAL_SPLIT_LOCATION + 1, PROGRAM_DRAW_VERTICAL_OFFSET), new Vec(_canvasRegion.Dimensions.X - (EMULATOR_VISUAL_SPLIT_LOCATION + 1), _canvasRegion.Dimensions.Y - PROGRAM_DRAW_VERTICAL_OFFSET)));
             _mgc.AddElement(_programRegion);
 
-            _programPath = null;
-            _programDirectory = null;
-            _programName = null;
-            _emulator = null;
+            UnloadEmulator();
 
             _instructionsPerSecond = 6;
 
@@ -211,6 +206,11 @@ namespace MadaEmulator_MonoGame_Edition
             if (_loadedProgramType == LoadedProgramType.FromFile)
             {
                 yield return "Reload";
+            }
+
+            if (_loadedProgramType != LoadedProgramType.None)
+            {
+                yield return "Unload";
             }
 
             yield return "Generate Random Program";
@@ -265,6 +265,11 @@ namespace MadaEmulator_MonoGame_Edition
                 case "Reload":
                     {
                         DoReloadMenu(args.MonoGameInstance);
+                    }
+                    break;
+                case "Unload":
+                    {
+                        UnloadEmulator();
                     }
                     break;
                 case "Generate Random Program":
@@ -383,6 +388,14 @@ namespace MadaEmulator_MonoGame_Edition
             _programOffset = _emulator == null ? 0 : _emulator.ProgramCounter;
             _instructionRuntimeDebt = 0;
         }
+        public void UnloadEmulator()
+        {
+            _programPath = null;
+            _programDirectory = null;
+            _programName = null;
+            _emulator = null; 
+            _loadedProgramType = LoadedProgramType.None;
+        }
         public void ResetEmulatorEnvironment()
         {
             ResetEmulator();
@@ -469,6 +482,11 @@ namespace MadaEmulator_MonoGame_Edition
             {
                 DoLoadMenu(mgi);
                 return;
+            }
+
+            if (mgi.ControlWasJustPressed("unload program"))
+            {
+                UnloadEmulator();
             }
 
             if (_emulator == null)
