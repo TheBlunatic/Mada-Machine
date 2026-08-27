@@ -536,10 +536,10 @@ namespace MadaEmulator_MonoGame_Edition
             }
         }
 
-        public byte Add(byte x, byte y)
+        public byte Add(byte x, byte y, bool cin = false)
         {
-            int resultInt = (int)x + (int)y;
-            byte result = (byte)(x + y);
+            int resultInt = (int)x + (int)y + (cin ? 1 : 0);
+            byte result = (byte)(resultInt);
             SetFlag(Condition.Z, result == 0);
             SetFlag(Condition.NZ, !GetFlag(Condition.Z));
 
@@ -551,8 +551,7 @@ namespace MadaEmulator_MonoGame_Edition
         public byte Sub(byte x, byte y)
         {
             y = (byte)(~y);
-            y++;
-            return Add(x, y);
+            return Add(x, y, true);
         }
         public byte Nor(byte x, byte y)
         {
