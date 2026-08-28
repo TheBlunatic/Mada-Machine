@@ -816,8 +816,10 @@ namespace MadaEmulator_MonoGame_Edition
                 throw new Exception($"The instruction count ({programText.Count}) exceeds the maximum of 128.");
             }
 
+            // Get whitespace
             for (int lineIndex = 0; lineIndex < programText.Count; lineIndex++)
             {
+                programText[lineIndex] = programText[lineIndex].Replace("\t", "    ");
                 List<int> whitespaceList = new List<int>();
                 int runLength = 0;
                 bool counting = true;
