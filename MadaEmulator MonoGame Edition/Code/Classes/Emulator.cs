@@ -149,7 +149,14 @@ namespace MadaEmulator_MonoGame_Edition
 
                 Opcode = (Opcode)Convert.ToByte(compactMachineCode.Substring(0, 4), 2);
 
-                List<ProgramToken> tokens = new List<ProgramToken>() { new ProgramToken(Token.Opcode, $"{Opcode}", $"{Opcode}") };
+                List<ProgramToken> tokens = new List<ProgramToken>();
+
+                foreach (string s in (commentIndex == -1 ? machineCode : machineCode.Substring(0, commentIndex)).Split(' ').Where((x) => x.Length != 0 && x[0] == '.'))
+                {
+                    tokens.Add(new ProgramToken(Token.Label, s));
+                }
+
+                tokens.Add(new ProgramToken(Token.Opcode, $"{Opcode}", $"{Opcode}"));
 
                 byte addRegister(int index)
                 {
@@ -822,10 +829,16 @@ namespace MadaEmulator_MonoGame_Edition
                 throw new Exception($"The instruction count ({programText.Length}) exceeds the maximum of 128.");
             }
 
-            // Get whitespace
+            // Format lines
             for (int lineIndex = 0; lineIndex < programText.Length; lineIndex++)
             {
                 programText[lineIndex] = programText[lineIndex].Replace("\t", "    ");
+                if (ProgramLine.CanParseAsMachineCode(programText[lineIndex])) programText[lineIndex] = new ProgramLine(programText[lineIndex]).ToString();
+            }
+
+            // Get whitespace
+            for (int lineIndex = 0; lineIndex < programText.Length; lineIndex++)
+            {
                 List<int> whitespaceList = new List<int>();
                 int runLength = 0;
                 bool counting = true;
@@ -868,13 +881,13 @@ namespace MadaEmulator_MonoGame_Edition
                 {
                     if (Regex.IsMatch(token, @"^\.([a-zA-Z0-9_-])+$"))
                     {
-                        list.Add(new ProgramToken(Token.Label, token, token));
+                        list.Add(new ProgramToken(Token.Label, token));
                         continue;
                     }
 
                     if (token.ToUpper() != token.ToLower() && Enum.TryParse<Opcode>(token, out Opcode opcodeResult))
                     {
-                        list.Add(new ProgramToken(Token.Opcode, token, token));
+                        list.Add(new ProgramToken(Token.Opcode, token));
                         continue;
                     }
 
@@ -933,15 +946,15 @@ namespace MadaEmulator_MonoGame_Edition
                     {
                         if (byteResult < 0b00010000)
                         {
-                            list.Add(new ProgramToken(Token.Value4, token, token));
+                            list.Add(new ProgramToken(Token.Value4, token));
                         }
                         else if (byteResult < 0b10000000)
                         {
-                            list.Add(new ProgramToken(Token.Value7, token, token));
+                            list.Add(new ProgramToken(Token.Value7, token));
                         }
                         else
                         {
-                            list.Add(new ProgramToken(Token.Value8, token, token));
+                            list.Add(new ProgramToken(Token.Value8, token));
                         }
                         continue;
                     }
