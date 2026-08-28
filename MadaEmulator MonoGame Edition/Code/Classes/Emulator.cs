@@ -140,10 +140,11 @@ namespace MadaEmulator_MonoGame_Edition
             }
             public ProgramLine(string machineCode)
             {
-                if (!Regex.IsMatch(machineCode, "^( )*((0|1)( )*){16}$")) throw new FormatException($"Cannot parse the following into machine code: '{machineCode}'");
-                string compactMachineCode = machineCode.Split(' ').Where((x) => x.Length != 0).Aggregate(string.Empty, (i, x) => $"{i}{x}");
+                if (!CanParseAsMachineCode(machineCode)) throw new FormatException($"Cannot parse the following into machine code: '{machineCode}'");
+                int commentIndex = machineCode.IndexOf('/');
+                string compactMachineCode = machineCode.Split('/')[0].Split(' ').Where((x) => x.Length != 0 && x[0] != '.').Aggregate(string.Empty, (i, x) => $"{i}{x}");
 
-                Comment = null;
+                Comment = commentIndex != -1 ? machineCode.Substring(commentIndex) : null;
                 MachineCode = $"{compactMachineCode.Substring(0, 4)} {compactMachineCode.Substring(4, 4)} {compactMachineCode.Substring(8, 4)} {compactMachineCode.Substring(12, 4)}";
 
                 Opcode = (Opcode)Convert.ToByte(compactMachineCode.Substring(0, 4), 2);
@@ -228,6 +229,11 @@ namespace MadaEmulator_MonoGame_Edition
                 Tokens = tokens.ToArray();
                 PrecedingWhitespace = new int[tokens.Count + 1];
                 for (int i = 1; i < PrecedingWhitespace.Length; i++) PrecedingWhitespace[i] = 1;
+            }
+
+            public static bool CanParseAsMachineCode(string machineCode)
+            {
+                return Regex.IsMatch(machineCode, @"^(\.([a-zA-Z0-9_-])+ )*( )*((0|1)( )*){16}(\/\/(.)*)?$");
             }
 
             public string ConvertProgramLineToMachineCode()
@@ -804,20 +810,20 @@ namespace MadaEmulator_MonoGame_Edition
         }
         public void LoadProgram(string programPath)
         {
-            List<string> programText = File.ReadAllLines(programPath).ToList();
+            string[] programText = File.ReadAllLines(programPath);
             List<ProgramLine> program = new List<ProgramLine>();
             string[] programComments = new string[128];
             int[][] precedingWhitespace = new int[128][];
 
             Dictionary<string, byte> labels = new Dictionary<string, byte>();
 
-            if (programText.Count > 128)
+            if (programText.Length > 128)
             {
-                throw new Exception($"The instruction count ({programText.Count}) exceeds the maximum of 128.");
+                throw new Exception($"The instruction count ({programText.Length}) exceeds the maximum of 128.");
             }
 
             // Get whitespace
-            for (int lineIndex = 0; lineIndex < programText.Count; lineIndex++)
+            for (int lineIndex = 0; lineIndex < programText.Length; lineIndex++)
             {
                 programText[lineIndex] = programText[lineIndex].Replace("\t", "    ");
                 List<int> whitespaceList = new List<int>();
@@ -842,7 +848,7 @@ namespace MadaEmulator_MonoGame_Edition
                 programText[lineIndex] = programText[lineIndex].Trim(' ');
             }
 
-            ProgramToken[][] programTokens = new ProgramToken[programText.Count][];
+            ProgramToken[][] programTokens = new ProgramToken[programText.Length][];
 
             // Divide and categorise tokens
             for (byte lineIndex = 0; lineIndex < programTokens.Length; lineIndex++)
@@ -860,7 +866,7 @@ namespace MadaEmulator_MonoGame_Edition
                 string[] splitLine = line.Split(' ').Where((i) => { return i != string.Empty; }).ToArray();
                 foreach (string token in splitLine)
                 {
-                    if (token[0] == '.')
+                    if (Regex.IsMatch(token, @"^\.([a-zA-Z0-9_-])+$"))
                     {
                         list.Add(new ProgramToken(Token.Label, token, token));
                         continue;
